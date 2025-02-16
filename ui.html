@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Select Unused Variables</title>
+  <style>
+    body {
+      /* Using Inter with system font fallbacks */
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+      color: #333;
+      background-color: #fff;
+      max-width: 100%;
+      min-height: 100vh;
+      font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    
+    /* Rest of the styles unchanged */
+    * {
+      box-sizing: border-box;
+    }
+    
+    .step {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    .step.active {
+      display: block;
+    }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .back {
+      padding: 8px 0;
+      margin-right: 12px;
+      cursor: pointer;
+      color: #333;
+      display: inline-flex;
+      align-items: center;
+      user-select: none;
+    }
+    
+    .back:hover .chevron-left {
+      transform: translateX(-2px);
+    }
+    
+    .chevron-left {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease;
+    }
+    
+    .chevron-left::before {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-left: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      transform: rotate(45deg);
+      margin-left: 4px;
+    }
+    
+    h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+      color: #000;
+      letter-spacing: -0.011em;
+    }
+    
+    .collections-list {
+      margin-bottom: 24px;
+      background: #FAFAFA;
+      border-radius: 8px;
+      padding: 4px;
+    }
+    
+    .collection-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0;
+      padding: 4px 12px;
+      border-radius: 6px;
+      transition: background-color 0.2s ease;
+    }
+    
+    .collection-item:hover {
+      background-color: #F0F0F0;
+    }
+    
+    /* Custom checkbox styles */
+    .collection-item input[type="checkbox"],
+    .select-all input[type="checkbox"] {
+      margin-right: 10px;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgb(17, 19, 20);
+      border-radius: 4px;
+      cursor: pointer;
+      position: relative;
+      appearance: none;
+      background: transparent;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .collection-item input[type="checkbox"]:checked,
+    .select-all input[type="checkbox"]:checked {
+      background-color: rgb(17, 19, 20);
+    }
+
+    .collection-item input[type="checkbox"]:checked::after,
+    .select-all input[type="checkbox"]:checked::after {
+      content: '';
+      position: absolute;
+      left: 3px;
+      top: 0px;
+      width: 4px;
+      height: 7px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
+    .collection-item input[type="checkbox"]:hover,
+    .select-all input[type="checkbox"]:hover {
+      border-color: rgb(28, 31, 32);
+    }
+
+    .collection-item input[type="checkbox"]:checked:hover,
+    .select-all input[type="checkbox"]:checked:hover {
+      background-color: rgb(28, 31, 32);
+    }
+    
+    .collection-item label {
+      cursor: pointer;
+      font-size: 14px;
+      user-select: none;
+      letter-spacing: -0.006em;
+    }
+    
+    .progress {
+      margin-top: 24px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      position: relative;
+      min-height: 48px;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .spinner-container {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+    
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 2px solid rgba(17, 19, 20, 0.2);
+      border-top: 2px solid rgb(17, 19, 20);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .results-container {
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .variable-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      margin-bottom: 16px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .variable-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid #EAEAEA;
+      transition: background-color 0.2s ease;
+    }
+    
+    .variable-item:hover {
+      background-color: #F8F9FA;
+    }
+    
+    .variable-item:last-child {
+      border-bottom: none;
+    }
+    
+    .variable-name {
+      font-weight: 500;
+      color: #000;
+      letter-spacing: -0.006em;
+      font-size: 13px;
+    }
+    
+    .collection-name {
+      color: #666;
+      font-size: 13px;
+      letter-spacing: -0.003em;
+    }
+    
+    button {
+      display: inline-block;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      background-color: rgb(17, 19, 20);
+      border: none;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      letter-spacing: -0.006em;
+    }
+    
+    button:disabled {
+      background-color: #E5E5E5;
+      color: #999;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+    
+    button:hover:not(:disabled) {
+      background-color: rgb(28, 31, 32);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    button:active:not(:disabled) {
+      transform: translateY(0);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    
+    .secondary-button {
+      background: #F5F5F5;
+      color: #333;
+      border: 1px solid #E5E5E5;
+      margin-top: 16px;
+      margin-bottom: 8px;
+      width: 100%;
+    }
+    
+    .secondary-button:hover:not(:disabled) {
+      background: #EAEAEA;
+      border-color: #D5D5D5;
+    }
+    
+    .select-all {
+      padding: 12px;
+      border-bottom: 1px solid #EAEAEA;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      background: #fff;
+      border-radius: 6px;
+    }
+    
+    .select-all label {
+      font-weight: 500;
+      font-size: 14px;
+      cursor: pointer;
+      user-select: none;
+      letter-spacing: -0.006em;
+    }
+
+    #start-search,
+    #print-button,
+    #delete-button {
+      width: 100%;
+    }
+
+    .results-summary {
+      text-align: center;
+      margin: 20px 0;
+      padding: 16px;
+      background: #F8F9FA;
+      border-radius: 8px;
+      font-size: 14px;
+      letter-spacing: -0.006em;
+    }
+
+    .results-count {
+      font-weight: 600;
+      color: rgb(17, 19, 20);
+    }
+  </style>
+</head>
+<body>
+  <!-- Rest of HTML unchanged -->
+  <div id="step1" class="step active">
+    <div class="header">
+      <h3>1. Select Collections</h3>
+    </div>
+    <div id="collections" class="collections-list">
+      <div class="select-all">
+        <input type="checkbox" id="select-all" checked>
+        <label for="select-all">Select all collections</label>
+      </div>
+    </div>
+    <button id="start-search" disabled>Start scanning</button>
+
+    <div id="step1-progress" class="progress" style="display: none;">
+      <div class="spinner-container">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="step2" class="step">
+    <div class="header">
+      <div class="back" id="back-button" role="button" tabindex="0">
+        <span class="chevron-left"></span>
+      </div>
+      <h3>2. Unused Variables</h3>
+    </div>
+    
+    <div class="results-container">
+      <ul class="variable-list" id="variable-list"></ul>
+    </div>
+    <button id="delete-button" class="danger-button primary-button">Delete all</button>
+    <a href="#" id="print-button" class="text-link">Print unused variables</a>
+  </div>
+  <div id="step3" class="step">
+    <div class="header">
+      <h3>3. Deletion Success</h3>
+    </div>
+    <div class="results-container">
+      <ul class="variable-list" id="deleted-variable-list"></ul>
+    </div>
+    <button id="restart-scan" class="primary-button">Start scanning again</button>
+  </div>
+  <script>
+    // Handle restart scan button
+    const restartScanButton = document.getElementById('restart-scan');
+    restartScanButton.onclick = () => {
+      parent.postMessage({ pluginMessage: { type: 'init' } }, '*');
+      step3.classList.remove('active');
+      step1.classList.add('active');
+      startButton.click();
+    };
+  </script>
+  </div>
+
+  <style>
+    .danger-button {
+      background-color: #DC2626;
+    }
+
+    .danger-button:hover:not(:disabled) {
+      background-color: #B91C1C;
+    }
+    .primary-button {
+      width: 100%;
+      margin-bottom: 12px;
+    }
+
+    .text-link {
+      display: block;
+      text-align: center;
+      color: rgb(17, 19, 20);
+      text-decoration: none;
+      font-size: 14px;
+      margin-top: 8px;
+      padding: 4px;
+    }
+
+    .text-link:hover {
+      text-decoration: underline;
+    }
+
+    .step.loading {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .step.loading button {
+      position: relative;
+      padding-left: 40px;
+      opacity: 0.8;
+      background-color: #DC2626 !important;
+      color: #fff !important;
+      cursor: wait !important;
+    }
+
+    .step.loading button::before {
+      content: '';
+      position: absolute;
+      left: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top: 2px solid #fff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+  </style>
+
+  <script>
+    /* JavaScript unchanged */
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const step3 = document.getElementById('step3');
+    const startButton = document.getElementById('start-search');
+    const backButton = document.getElementById('back-button');
+    const step1Progress = document.getElementById('step1-progress');
+    const collections = document.getElementById('collections');
+    const printButton = document.getElementById('print-button');
+    const selectAllCheckbox = document.getElementById('select-all');
+    const variableList = document.getElementById('variable-list');
+
+    // Initialize
+    window.onload = () => {
+      parent.postMessage({ pluginMessage: { type: 'init' } }, '*');
+    };
+
+    // Reset UI state
+    function resetState() {
+      step1Progress.style.display = 'none';
+      startButton.disabled = false;
+    }
+
+    // Handle navigation
+    backButton.onclick = () => {
+      step2.classList.remove('active');
+      step1.classList.add('active');
+      resetState();
+    };
+
+    // Handle keyboard navigation for back button
+    backButton.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        step2.classList.remove('active');
+        step1.classList.add('active');
+        resetState();
+      }
+    });
+
+    // Handle messages from the plugin
+    window.onmessage = (event) => {
+      if (!event.data.pluginMessage) return;
+      
+      const msg = event.data.pluginMessage;
+      console.log('📨 Received message:', msg);
+
+      switch (msg.type) {
+        case 'deletion-complete':
+          const deletedList = document.getElementById('deleted-variable-list');
+          if (msg.deletedVariables && msg.deletedVariables.length > 0) {
+            deletedList.innerHTML = `
+              <div class="results-summary">
+                Successfully deleted <span class="results-count">${msg.deletedVariables.length}</span> unused variables
+              </div>
+              ${msg.deletedVariables.map(v => `
+                <li class="variable-item">
+                  <div class="variable-name">${v.name}</div>
+                  <div class="collection-name">${v.collection}</div>
+                </li>
+              `).join('')}
+            `;
+          } else {
+            deletedList.innerHTML = `
+              <div class="results-summary">
+                No variables were deleted
+              </div>
+            `;
+          }
+          // Switch to success screen first to avoid visual glitch
+          step2.classList.remove('active');
+          step3.classList.add('active');
+
+          // Then cleanup the loading state
+          setTimeout(() => {
+            step2.classList.remove('loading');
+            deleteButton.disabled = false;
+          }, 100);
+          break;
+        case 'collections':
+          collections.innerHTML = ''; // Clear existing content
+          collections.appendChild(selectAllCheckbox.parentElement); // Re-add select all checkbox
+          
+          if (!msg.collections || msg.collections.length === 0) {
+            collections.innerHTML += '<p>No variable collections found in this file</p>';
+            startButton.disabled = true;
+            return;
+          }
+
+          msg.collections.forEach(collection => {
+            const div = document.createElement('div');
+            div.className = 'collection-item';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = collection.id;
+            checkbox.value = collection.id;
+            checkbox.checked = true;
+            
+            const label = document.createElement('label');
+            label.htmlFor = collection.id;
+            label.textContent = collection.name;
+            
+            div.appendChild(checkbox);
+            div.appendChild(label);
+            collections.appendChild(div);
+          });
+
+          startButton.disabled = false;
+          break;
+
+        case 'progress':
+          step1Progress.style.display = 'block';
+          break;
+
+        case 'complete':
+          if (msg.variables && msg.variables.length > 0) {
+            variableList.innerHTML = `
+              <div class="results-summary">
+                Found <span class="results-count">${msg.variables.length}</span> unused variables
+              </div>
+              ${msg.variables.map(v => `
+                <li class="variable-item">
+                  <div class="variable-name">${v.name}</div>
+                  <div class="collection-name">${v.collection}</div>
+                </li>
+              `).join('')}
+            `;
+            printButton.style.display = 'block';
+          } else {
+            variableList.innerHTML = `
+              <div class="results-summary">
+                No unused variables found
+              </div>
+            `;
+            printButton.style.display = 'none';
+          }
+
+          // Switch to step 2
+          step1.classList.remove('active');
+          step2.classList.add('active');
+          resetState();
+          break;
+      }
+    };
+
+    // Send selected collections to the plugin
+    startButton.onclick = () => {
+      const selectedCollections = Array.from(
+        document.querySelectorAll('#collections input[type="checkbox"]:checked')
+      ).map(input => input.value);
+      
+      if (selectedCollections.length === 0) {
+        alert('Please select at least one collection');
+        return;
+      }
+
+      startButton.disabled = true;
+      step1Progress.style.display = 'block';
+      
+      parent.postMessage({
+        pluginMessage: {
+          type: 'start-search',
+          collections: selectedCollections
+        }
+      }, '*');
+    };
+
+    // Initialize delete button
+    const deleteButton = document.getElementById('delete-button');
+
+    // Print unused variables (prevent default for link)
+    printButton.onclick = (e) => {
+      e.preventDefault();
+      parent.postMessage({
+        pluginMessage: {
+          type: 'print-unused'
+        }
+      }, '*');
+    };
+
+    // Delete unused variables
+    deleteButton.onclick = () => {
+      const confirmed = confirm('Are you sure you want to delete all unused variables? This action cannot be undone.');
+      if (confirmed) {
+        parent.postMessage({
+          pluginMessage: {
+            type: 'delete-unused'
+          }
+        }, '*');
+        // Show loading state
+        step2.classList.add('loading');
+        deleteButton.disabled = true;
+      }
+    };
+
+    // Handle select all checkbox
+    selectAllCheckbox.addEventListener('change', (e) => {
+      const checkboxes = document.querySelectorAll('.collection-item input[type="checkbox"]');
+      checkboxes.forEach(checkbox => {
+        checkbox.checked = e.target.checked;
+      });
+    });
+  </script>
+</body>
+</html>

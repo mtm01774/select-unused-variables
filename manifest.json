@@ -1,0 +1,14 @@
+{
+  "name": "Select Unused Variables",
+  "id": "select-unused-variables",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": ["figma"],
+  "permissions": [
+    "currentuser"
+  ],
+  "networkAccess": {
+    "allowedDomains": ["none"]
+  }
+}
