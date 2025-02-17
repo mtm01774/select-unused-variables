@@ -204,18 +204,61 @@
     
     .variable-item {
       display: flex;
-      justify-content: space-between;
-      padding: 12px 16px;
-      border-bottom: 1px solid #EAEAEA;
+      align-items: center;
+      margin-bottom: 0;
+      padding: 4px 12px;
+      border-radius: 6px;
       transition: background-color 0.2s ease;
     }
     
     .variable-item:hover {
-      background-color: #F8F9FA;
+      background-color: #F0F0F0;
     }
     
-    .variable-item:last-child {
-      border-bottom: none;
+    .variable-item input[type="checkbox"] {
+      margin-right: 10px;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgb(17, 19, 20);
+      border-radius: 4px;
+      cursor: pointer;
+      position: relative;
+      appearance: none;
+      background: transparent;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .variable-item input[type="checkbox"]:checked {
+      background-color: rgb(17, 19, 20);
+    }
+
+    .variable-item input[type="checkbox"]:checked::after {
+      content: '';
+      position: absolute;
+      left: 3px;
+      top: 0px;
+      width: 4px;
+      height: 7px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
+    .variable-item input[type="checkbox"]:hover {
+      border-color: rgb(28, 31, 32);
+    }
+
+    .variable-item input[type="checkbox"]:checked:hover {
+      background-color: rgb(28, 31, 32);
+    }
+
+    .variable-item label {
+      cursor: pointer;
+      flex: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     
     .variable-name {
@@ -316,125 +359,179 @@
       font-weight: 600;
       color: rgb(17, 19, 20);
     }
-  </style>
-</head>
-<body>
-  <!-- Rest of HTML unchanged -->
-  <div id="step1" class="step active">
-    <div class="header">
-      <h3>1. Select Collections</h3>
-    </div>
-    <div id="collections" class="collections-list">
-      <div class="select-all">
-        <input type="checkbox" id="select-all" checked>
-        <label for="select-all">Select all collections</label>
-      </div>
-    </div>
-    <button id="start-search" disabled>Start scanning</button>
 
-    <div id="step1-progress" class="progress" style="display: none;">
-      <div class="spinner-container">
-        <div class="spinner"></div>
-      </div>
-    </div>
-  </div>
-
-  <div id="step2" class="step">
-    <div class="header">
-      <div class="back" id="back-button" role="button" tabindex="0">
-        <span class="chevron-left"></span>
-      </div>
-      <h3>2. Unused Variables</h3>
-    </div>
-    
-    <div class="results-container">
-      <ul class="variable-list" id="variable-list"></ul>
-    </div>
-    <button id="delete-button" class="danger-button primary-button">Delete all</button>
-    <a href="#" id="print-button" class="text-link">Print unused variables</a>
-  </div>
-  <div id="step3" class="step">
-    <div class="header">
-      <h3>3. Deletion Success</h3>
-    </div>
-    <div class="results-container">
-      <ul class="variable-list" id="deleted-variable-list"></ul>
-    </div>
-    <button id="restart-scan" class="primary-button">Start scanning again</button>
-  </div>
-  <script>
-    // Handle restart scan button
-    const restartScanButton = document.getElementById('restart-scan');
-    restartScanButton.onclick = () => {
-      parent.postMessage({ pluginMessage: { type: 'init' } }, '*');
-      step3.classList.remove('active');
-      step1.classList.add('active');
-      startButton.click();
-    };
-  </script>
-  </div>
-
-  <style>
     .danger-button {
       background-color: #DC2626;
+      width: 100%;
+      margin-bottom: 12px;
     }
 
     .danger-button:hover:not(:disabled) {
       background-color: #B91C1C;
     }
-    .primary-button {
-      width: 100%;
-      margin-bottom: 12px;
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
     }
 
-    .text-link {
-      display: block;
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 320px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 24px;
+    }
+
+    .modal-actions button {
+      flex: 1;
+      margin: 0;
+    }
+
+    .success-message {
       text-align: center;
-      color: rgb(17, 19, 20);
-      text-decoration: none;
-      font-size: 14px;
-      margin-top: 8px;
-      padding: 4px;
+      padding: 32px 16px;
     }
 
-    .text-link:hover {
-      text-decoration: underline;
+    .success-icon {
+      width: 48px;
+      height: 48px;
+      background: #22C55E;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin: 0 auto 16px;
     }
 
-    .step.loading {
-      opacity: 0.7;
+    .success-message h4 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      color: #22C55E;
+    }
+
+    .success-message p {
+      margin: 0;
+      color: #666;
+    }
+
+    .variable-item {
+      display: flex;
+      align-items: center;
+    }
+
+    .variable-item input[type="checkbox"] {
+      margin-right: 12px;
+    }
+
+    .disabled {
+      opacity: 0.5;
       pointer-events: none;
     }
-
-    .step.loading button {
-      position: relative;
-      padding-left: 40px;
-      opacity: 0.8;
-      background-color: #DC2626 !important;
-      color: #fff !important;
-      cursor: wait !important;
+    
+    input[type="checkbox"]:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
-
-    .step.loading button::before {
-      content: '';
-      position: absolute;
-      left: 15px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 16px;
-      height: 16px;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-top: 2px solid #fff;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
+    
+    .back[disabled] {
+      pointer-events: none;
+      opacity: 0.5;
     }
   </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Step 1: Collection Selection -->
+    <div id="step1" class="step active">
+      <div class="header">
+        <h3>1. Select Collections</h3>
+      </div>
+      <div id="collections" class="collections-list">
+        <div class="select-all">
+          <input type="checkbox" id="select-all" checked>
+          <label for="select-all">All</label>
+        </div>
+      </div>
+      <button id="start-search" disabled>Select unused variables</button>
+
+      <div id="step1-progress" class="progress" style="display: none;">
+        <div class="spinner-container">
+          <div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Analysis Results -->
+    <div id="step2" class="step">
+      <div class="header">
+        <div class="back" id="back-button" role="button" tabindex="0">
+          <span class="chevron-left"></span>
+        </div>
+        <h3>2. Unused Variables</h3>
+      </div>
+      
+      <div class="results-container">
+        <ul class="variable-list" id="variable-list"></ul>
+      </div>
+      <button id="delete-button" class="danger-button">Delete selected variables</button>
+      <button id="print-button" class="secondary-button">Print on Figma</button>
+    </div>
+
+    <!-- Step 3: Success State -->
+    <div id="step3" class="step">
+      <div class="header">
+        <h3>3. Variables Deleted</h3>
+      </div>
+      <div class="results-container">
+        <div class="success-message">
+          <div class="success-icon">✓</div>
+          <h4>Success!</h4>
+          <p>Selected variables have been deleted</p>
+        </div>
+        <ul class="variable-list" id="deleted-variable-list"></ul>
+      </div>
+      <button id="restart-scan" class="primary-button">Select unused variables</button>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmation-modal" class="modal">
+      <div class="modal-content">
+        <h4>Confirm Deletion</h4>
+        <p>Are you sure you want to delete the selected variables? This action cannot be undone.</p>
+        <div class="modal-actions">
+          <button id="cancel-delete" class="secondary-button">Cancel</button>
+          <button id="confirm-delete" class="danger-button">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
     /* JavaScript unchanged */
     const step1 = document.getElementById('step1');
     const step2 = document.getElementById('step2');
-    const step3 = document.getElementById('step3');
     const startButton = document.getElementById('start-search');
     const backButton = document.getElementById('back-button');
     const step1Progress = document.getElementById('step1-progress');
@@ -442,6 +539,14 @@
     const printButton = document.getElementById('print-button');
     const selectAllCheckbox = document.getElementById('select-all');
     const variableList = document.getElementById('variable-list');
+    const step3 = document.getElementById('step3');
+    const deleteButton = document.getElementById('delete-button');
+    const confirmationModal = document.getElementById('confirmation-modal');
+    const confirmDelete = document.getElementById('confirm-delete');
+    const cancelDelete = document.getElementById('cancel-delete');
+    const selectAllVars = document.getElementById('select-all-vars');
+    const restartScan = document.getElementById('restart-scan');
+    const deletedVariableList = document.getElementById('deleted-variable-list');
 
     // Initialize
     window.onload = () => {
@@ -476,40 +581,9 @@
       if (!event.data.pluginMessage) return;
       
       const msg = event.data.pluginMessage;
-      console.log('📨 Received message:', msg);
+      console.log('📨 Received message from plugin:', msg);
 
       switch (msg.type) {
-        case 'deletion-complete':
-          const deletedList = document.getElementById('deleted-variable-list');
-          if (msg.deletedVariables && msg.deletedVariables.length > 0) {
-            deletedList.innerHTML = `
-              <div class="results-summary">
-                Successfully deleted <span class="results-count">${msg.deletedVariables.length}</span> unused variables
-              </div>
-              ${msg.deletedVariables.map(v => `
-                <li class="variable-item">
-                  <div class="variable-name">${v.name}</div>
-                  <div class="collection-name">${v.collection}</div>
-                </li>
-              `).join('')}
-            `;
-          } else {
-            deletedList.innerHTML = `
-              <div class="results-summary">
-                No variables were deleted
-              </div>
-            `;
-          }
-          // Switch to success screen first to avoid visual glitch
-          step2.classList.remove('active');
-          step3.classList.add('active');
-
-          // Then cleanup the loading state
-          setTimeout(() => {
-            step2.classList.remove('loading');
-            deleteButton.disabled = false;
-          }, 100);
-          break;
         case 'collections':
           collections.innerHTML = ''; // Clear existing content
           collections.appendChild(selectAllCheckbox.parentElement); // Re-add select all checkbox
@@ -542,24 +616,48 @@
           startButton.disabled = false;
           break;
 
-        case 'progress':
-          step1Progress.style.display = 'block';
-          break;
-
         case 'complete':
           if (msg.variables && msg.variables.length > 0) {
             variableList.innerHTML = `
               <div class="results-summary">
                 Found <span class="results-count">${msg.variables.length}</span> unused variables
               </div>
+              <div class="select-all">
+                <input type="checkbox" id="select-all-vars" checked>
+                <label for="select-all-vars">Select All Variables</label>
+              </div>
               ${msg.variables.map(v => `
                 <li class="variable-item">
-                  <div class="variable-name">${v.name}</div>
-                  <div class="collection-name">${v.collection}</div>
+                  <input type="checkbox" id="var-${v.id}" value="${v.id}" checked>
+                  <label for="var-${v.id}">
+                    <span class="variable-name">${v.name}</span>
+                    <span class="collection-name">${v.collection}</span>
+                  </label>
                 </li>
               `).join('')}
             `;
             printButton.style.display = 'block';
+            deleteButton.style.display = 'block';
+
+            // Re-attach event listener for select all
+            const selectAllVars = document.getElementById('select-all-vars');
+            if (selectAllVars) {
+              selectAllVars.addEventListener('change', (e) => {
+                const checkboxes = document.querySelectorAll('.variable-item input[type="checkbox"]');
+                checkboxes.forEach(checkbox => {
+                  checkbox.checked = e.target.checked;
+                });
+              });
+
+              // Update select all when individual checkboxes change
+              const checkboxes = document.querySelectorAll('.variable-item input[type="checkbox"]');
+              checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                  const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                  selectAllVars.checked = allChecked;
+                });
+              });
+            }
           } else {
             variableList.innerHTML = `
               <div class="results-summary">
@@ -567,12 +665,50 @@
               </div>
             `;
             printButton.style.display = 'none';
+            deleteButton.style.display = 'none';
           }
 
           // Switch to step 2
           step1.classList.remove('active');
           step2.classList.add('active');
           resetState();
+          break;
+
+        case 'deletion-complete':
+          console.log('🗑️ Deletion complete, showing success screen:', msg.deletedVariables);
+          if (msg.deletedVariables && msg.deletedVariables.length > 0) {
+            deletedVariableList.innerHTML = `
+              <div class="results-summary">
+                Successfully deleted <span class="results-count">${msg.deletedVariables.length}</span> variables
+              </div>
+              ${msg.deletedVariables.map(v => `
+                <li class="variable-item">
+                  <div class="variable-name">${v.name}</div>
+                  <div class="collection-name">${v.collection}</div>
+                </li>
+              `).join('')}
+            `;
+          }
+
+          // Reset UI state
+          const appElement = document.getElementById('app');
+          appElement.classList.remove('disabled');
+          deleteButton.disabled = false;
+          deleteButton.textContent = 'Delete selected variables';
+          printButton.disabled = false;
+          backButton.style.pointerEvents = 'auto';
+          
+          // Ensure proper transition to step 3
+          step2.classList.remove('active');
+          step3.classList.add('active');
+          
+          // Force a reflow to ensure the transition is visible
+          void step3.offsetWidth;
+          break;
+
+        case 'error':
+          console.error('❌ Error received:', msg.message);
+          alert(msg.message);
           break;
       }
     };
@@ -599,9 +735,6 @@
       }, '*');
     };
 
-    // Initialize delete button
-    const deleteButton = document.getElementById('delete-button');
-
     // Print unused variables (prevent default for link)
     printButton.onclick = (e) => {
       e.preventDefault();
@@ -612,21 +745,6 @@
       }, '*');
     };
 
-    // Delete unused variables
-    deleteButton.onclick = () => {
-      const confirmed = confirm('Are you sure you want to delete all unused variables? This action cannot be undone.');
-      if (confirmed) {
-        parent.postMessage({
-          pluginMessage: {
-            type: 'delete-unused'
-          }
-        }, '*');
-        // Show loading state
-        step2.classList.add('loading');
-        deleteButton.disabled = true;
-      }
-    };
-
     // Handle select all checkbox
     selectAllCheckbox.addEventListener('change', (e) => {
       const checkboxes = document.querySelectorAll('.collection-item input[type="checkbox"]');
@@ -634,6 +752,68 @@
         checkbox.checked = e.target.checked;
       });
     });
+
+    // Handle delete button
+    deleteButton.onclick = () => {
+      // Get all checked variables (excluding the select-all checkbox)
+      const selectedVars = Array.from(
+        document.querySelectorAll('.variable-item input[type="checkbox"]:checked')
+      ).map(input => input.value);
+
+      if (selectedVars.length === 0) {
+        alert('Please select at least one variable to delete');
+        return;
+      }
+
+      console.log('🗑️ Opening delete confirmation for variables:', selectedVars);
+      confirmationModal.classList.add('active');
+    };
+
+    // Handle confirmation modal
+    confirmDelete.onclick = () => {
+      // Get all checked variables (excluding the select-all checkbox)
+      const selectedVars = Array.from(
+        document.querySelectorAll('.variable-item input[type="checkbox"]:checked')
+      ).map(input => input.value);
+
+      if (selectedVars.length === 0) {
+        alert('Please select at least one variable to delete');
+        return;
+      }
+
+      console.log('✅ Delete confirmed for variables:', selectedVars);
+      confirmationModal.classList.remove('active');
+      
+      // Disable all interactive elements during deletion
+      const appElement = document.getElementById('app');
+      appElement.classList.add('disabled');
+      deleteButton.disabled = true;
+      deleteButton.textContent = 'Deleting...';
+      printButton.disabled = true;
+      backButton.style.pointerEvents = 'none';
+      
+      // Disable all checkboxes
+      document.querySelectorAll('.variable-item input[type="checkbox"], #select-all-vars')
+        .forEach(cb => cb.disabled = true);
+      
+      parent.postMessage({
+        pluginMessage: {
+          type: 'delete-variables',
+          variables: selectedVars
+        }
+      }, '*');
+    };
+
+    cancelDelete.onclick = () => {
+      confirmationModal.classList.remove('active');
+    };
+
+    // Handle restart scan button
+    restartScan.onclick = () => {
+      step3.classList.remove('active');
+      step1.classList.add('active');
+      parent.postMessage({ pluginMessage: { type: 'init' } }, '*');
+    };
   </script>
 </body>
 </html>

@@ -78,6 +78,67 @@ interface VariableAlias {
   type: 'VARIABLE_ALIAS';
 }
 
+// Add utility functions for variable ID handling
+function getCleanVariableIds(rawIds: string[]): string[] {
+  return rawIds.map(id => id.replace(/^VariableID:/, ''));
+}
+
+function validateVariablesExist(ids: string[]): boolean {
+  return ids.every(id => {
+    const exists = figma.variables.getVariableById(id);
+    if (!exists) {
+      console.warn(`⚠️ Variable not found: ${id}`);
+      return false;
+    }
+    return true;
+  });
+}
+
+async function batchDeleteVariables(ids: string[], batchSize = 25): Promise<string[]> {
+  const deletedIds: string[] = [];
+  const errors: string[] = [];
+
+  for (let i = 0; i < ids.length; i += batchSize) {
+    const batch = ids.slice(i, i + batchSize);
+    try {
+      // Validate batch before deletion
+      const validBatch = batch.filter(id => {
+        const variable = figma.variables.getVariableById(id);
+        if (!variable) {
+          console.warn(`⚠️ Skipping invalid variable: ${id}`);
+          return false;
+        }
+        return true;
+      });
+
+      if (validBatch.length > 0) {
+        // Delete valid variables
+        for (const id of validBatch) {
+          const variable = figma.variables.getVariableById(id);
+          if (variable) {
+            await variable.remove();
+            deletedIds.push(id);
+            console.log(`✅ Deleted variable: ${variable.name} (${id})`);
+          }
+        }
+      }
+
+      // Add small delay between batches
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (error) {
+      const errorMessage = `Failed to process batch ${i / batchSize + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      console.error(errorMessage);
+      errors.push(errorMessage);
+    }
+  }
+
+  if (errors.length > 0) {
+    console.error('❌ Batch deletion errors:', errors);
+  }
+
+  return deletedIds;
+}
+
 /**
  * Recursively scans nodes for variable usage
  */
@@ -152,8 +213,9 @@ async function checkVariableUsage(node: BaseNode, usedVars: Set<string>): Promis
       const textNode = node as TextNode;
       
       // Check text style
-      if (textNode.textStyleId) {
-        const textStyle = figma.getStyleById(textNode.textStyleId);
+      const textStyleId = textNode.textStyleId as string;
+      if (textStyleId) {
+        const textStyle = figma.getStyleById(textStyleId);
         if (textStyle?.boundVariables) {
           Object.values(textStyle.boundVariables).forEach(binding => {
             const bindings = Array.isArray(binding) ? binding : [binding];
@@ -194,12 +256,60 @@ async function getTrulyUnusedVariables(): Promise<Variable[]> {
   const usedVars = new Set<string>();
   
   try {
-    // Scan all pages
+    // Check all modes in all collections first
+    const collections = figma.variables.getLocalVariableCollections();
+    collections.forEach(collection => {
+      Object.values(collection.modes).forEach(mode => {
+        const modeVariables = collection.variableIds.map(id => figma.variables.getVariableById(id));
+        modeVariables.forEach(variable => {
+          if (variable?.id) {
+            // Check if the variable is referenced by other variables
+            collections.forEach(c => {
+              c.variableIds.forEach(vid => {
+                const v = figma.variables.getVariableById(vid);
+                if (v) {
+                  // Check all modes for this variable
+                  Object.entries(v.valuesByMode).forEach(([modeId, modeValue]) => {
+                    try {
+                      // Check direct value references
+                      if (typeof modeValue === 'object' && modeValue !== null) {
+                        // Cast to any to check internal structure
+                        const valueObj = modeValue as any;
+                        if (valueObj.type === 'VARIABLE_ALIAS' && valueObj.id === variable.id) {
+                          usedVars.add(variable.id);
+                        }
+                      }
+                      
+                      // Check variable references in other variables
+                      collection.variableIds.forEach(otherId => {
+                        if (otherId !== variable.id) {
+                          const otherVar = figma.variables.getVariableById(otherId);
+                          if (otherVar && typeof otherVar.valuesByMode[modeId] === 'object') {
+                            const value = otherVar.valuesByMode[modeId] as any;
+                            if (value?.type === 'VARIABLE_ALIAS' && value.id === variable.id) {
+                              usedVars.add(variable.id);
+                            }
+                          }
+                        }
+                      });
+                    } catch (error) {
+                      console.warn(`⚠️ Error checking variable reference in mode ${modeId}: ${error}`);
+                    }
+                  });
+                }
+              });
+            });
+          }
+        });
+      });
+    });
+
+    // Scan all pages for direct usage
     for (const page of figma.root.children) {
       await scanNodes(page.children, usedVars);
     }
 
-    // Check text styles
+    // Check text styles and their variants
     const textStyles = figma.getLocalTextStyles();
     textStyles.forEach(style => {
       if (style.boundVariables) {
@@ -220,124 +330,6 @@ async function getTrulyUnusedVariables(): Promise<Variable[]> {
   } catch (error) {
     console.error('❌ Error finding unused variables:', error);
     return [];
-  }
-}
-
-/**
- * Safely deletes variables with validation
- */
-async function safeDeleteVariables(variables: Variable[]): Promise<Set<string>> {
-  const deletedIds = new Set<string>();
-  const total = variables.length;
-  let processed = 0;
-
-  try {
-    for (const variable of variables) {
-      // Update progress
-      figma.ui.postMessage({
-        type: 'deletion-progress',
-        message: `Processing ${processed + 1}/${total}`,
-        progress: (processed / total) * 100
-      });
-
-      try {
-        // Ensure variable still exists
-        const exists = figma.variables.getVariableById(variable.id);
-        if (!exists) {
-          console.warn(`⚠️ Variable ${variable.name} no longer exists`);
-          continue;
-        }
-
-        // Get collection
-        const collection = figma.variables.getVariableCollectionById(variable.variableCollectionId);
-        if (!collection) {
-          console.warn(`⚠️ Collection not found for variable: ${variable.name}`);
-          continue;
-        }
-
-        // Force detach from all nodes
-        await detachVariableFromAllNodes(variable);
-        
-        // Attempt deletion with verification
-        let deleteAttempts = 3;
-        let deleted = false;
-
-        while (deleteAttempts > 0 && !deleted) {
-          try {
-            await variable.remove();
-            await new Promise(resolve => setTimeout(resolve, 200));
-            
-            // Verify deletion
-            const stillExists = figma.variables.getVariableById(variable.id);
-            if (!stillExists) {
-              console.log(`✅ Successfully deleted: ${variable.name}`);
-              deletedIds.add(variable.id);
-              deleted = true;
-            } else {
-              console.warn(`⚠️ Variable still exists after deletion attempt`);
-            }
-          } catch (error) {
-            console.warn(`⚠️ Deletion attempt failed: ${error}`);
-          }
-          deleteAttempts--;
-          if (!deleted) {
-            await new Promise(resolve => setTimeout(resolve, 300));
-          }
-        }
-
-        if (!deleted) {
-          console.error(`❌ Failed to delete variable: ${variable.name}`);
-        }
-      } catch (error) {
-        console.error(`❌ Error processing ${variable.name}:`, error);
-      }
-
-      processed++;
-    }
-  } catch (error) {
-    console.error('❌ Error in batch deletion:', error);
-  }
-
-  return deletedIds;
-}
-
-/**
- * Detaches a variable from all nodes that use it
- */
-async function detachVariableFromAllNodes(variable: Variable): Promise<void> {
-  const nodes = figma.root.findAll(node => {
-    try {
-      if (!('boundVariables' in node) || !node.boundVariables) return false;
-      
-      // Check all bindable properties
-      return BINDABLE_PROPERTIES.some(prop => {
-        const boundVars = (node as any)[prop]?.boundVariables;
-        if (!boundVars) return false;
-        
-        return Object.values(boundVars).some(binding => {
-          const bindings = Array.isArray(binding) ? binding : [binding];
-          return bindings.some(b => b?.id === variable.id);
-        });
-      });
-    } catch {
-      return false;
-    }
-  });
-
-  for (const node of nodes) {
-    try {
-      for (const prop of BINDABLE_PROPERTIES) {
-        if ((node as any)[prop]?.boundVariables) {
-          const originalValue = (node as any)[prop];
-          if ('detachVariable' in node) {
-            (node as any).detachVariable(prop);
-          }
-          (node as any)[prop] = originalValue;
-        }
-      }
-    } catch (error) {
-      console.warn(`⚠️ Error detaching from node ${node.name}:`, error);
-    }
   }
 }
 
@@ -544,9 +536,6 @@ async function processBatch(nodes: SceneNode[], stats: ProcessingStats): Promise
  * @param selectedCollections Array of selected collection IDs to filter by
  */
 async function findUnusedVariables(selectedCollections: string[] = []): Promise<VariableResult[]> {
-  console.time('Variable Analysis');
-  console.log('🔍 Starting unused variables analysis...');
-  
   const stats: ProcessingStats = {
     startTime: Date.now(),
     nodesProcessed: 0,
@@ -554,117 +543,25 @@ async function findUnusedVariables(selectedCollections: string[] = []): Promise<
   };
 
   try {
-    // Get all variables and validate
-    figma.ui.postMessage({
-      type: 'progress',
-      message: 'Getting variables...',
-      progress: 0
-    });
-
-    const variables = await getAllVariables(selectedCollections);
-    if (!variables.length) {
-      console.log('ℹ️ No variables found in selected collections');
-      return [];
-    }
-
-    // Create lookup maps for better performance
-    const variableMap = new Map(variables.map(v => [v.id, v]));
-    const usedVariableIds = new Set<string>();
+    // Get all variables from selected collections
+    const allVariables = await getAllVariables(selectedCollections);
     
-    // Get all pages and their nodes
-    figma.ui.postMessage({
-      type: 'progress',
-      message: 'Analyzing document structure...',
-      progress: 10
-    });
+    // Get set of used variable IDs
+    const usedVarIds = await getTrulyUnusedVariables();
+    
+    // Filter out used variables
+    const unusedVars = allVariables.filter(v => !usedVarIds.some(uv => uv.id === v.id));
 
-    const pages = figma.root.children;
-    const totalNodes = pages.reduce((count, page) => count + page.findAll().length, 0);
-    let processedNodes = 0;
+    // Format results
+    return unusedVars.map(v => ({
+      name: v.name,
+      collection: v.collection,
+      id: v.id
+    }));
 
-    // Process each page
-    for (const page of pages) {
-      console.log(`📄 Analyzing page: ${page.name}`);
-      const nodes = page.findAll();
-
-      // Process nodes in parallel batches
-      const batches = [];
-      for (let i = 0; i < nodes.length; i += BATCH_CONFIG.size) {
-        const batch = nodes.slice(i, i + BATCH_CONFIG.size);
-        batches.push(batch);
-      }
-
-      // Process batches with limited concurrency
-      const batchPromises = [];
-      for (let i = 0; i < batches.length; i += BATCH_CONFIG.maxParallelBatches) {
-        const currentBatches = batches.slice(i, i + BATCH_CONFIG.maxParallelBatches);
-        const promises = currentBatches.map(async batch => {
-          const results = await processBatch(batch, stats);
-          results.forEach(id => usedVariableIds.add(id));
-          processedNodes += batch.length;
-          
-          // Update progress
-          const progress = Math.min(90, 10 + (processedNodes / totalNodes * 80));
-          figma.ui.postMessage({
-            type: 'progress',
-            message: `Analyzing nodes... (${processedNodes}/${totalNodes})`,
-            progress,
-            stats: {
-              nodesProcessed: stats.nodesProcessed,
-              variablesFound: stats.variablesFound
-            }
-          });
-        });
-        
-        batchPromises.push(...promises);
-        if (batchPromises.length >= BATCH_CONFIG.maxParallelBatches) {
-          await Promise.all(batchPromises);
-          batchPromises.length = 0;
-          await new Promise(resolve => setTimeout(resolve, BATCH_CONFIG.delay));
-        }
-      }
-
-      // Process any remaining promises
-      if (batchPromises.length > 0) {
-        await Promise.all(batchPromises);
-      }
-    }
-
-    // Find unused variables
-    figma.ui.postMessage({
-      type: 'progress',
-      message: 'Identifying unused variables...',
-      progress: 95
-    });
-
-    const unusedVariables: VariableResult[] = [];
-    for (const variable of variables) {
-      if (!usedVariableIds.has(variable.id)) {
-        try {
-          const collection = figma.variables.getVariableCollectionById(variable.variableCollectionId);
-          unusedVariables.push({
-            name: variable.name,
-            collection: collection?.name || 'No Collection',
-            id: variable.id
-          });
-        } catch (error) {
-          console.warn(`⚠️ Error processing variable ${variable.name}:`, error);
-        }
-      }
-    }
-
-    const executionTime = Date.now() - stats.startTime; // Changed from performance.now()
-    console.log(`✅ Search completed in ${executionTime}ms`);
-    console.log(`📊 Statistics:
-    - Nodes processed: ${stats.nodesProcessed}
-    - Variables found: ${stats.variablesFound}
-    - Unused variables: ${unusedVariables.length}`);
-
-    return unusedVariables;
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-    console.error('🔥 Critical error in findUnusedVariables:', errorMsg);
-    throw new Error(`Failed to find unused variables: ${errorMsg}`);
+    console.error('Error finding unused variables:', error instanceof Error ? error.message : String(error));
+    throw error instanceof Error ? error : new Error('Unknown error finding unused variables');
   }
 }
 
@@ -711,9 +608,422 @@ async function createTextNode(unusedVars: VariableResult[]): Promise<TextNode | 
   }
 }
 
+// Add deep cleaning functionality
+async function deepCleanVariables(variableIds: string[]): Promise<void> {
+  console.log('🧹 Starting deep clean for variables:', variableIds);
+
+  try {
+    // Step 1: Clear component instance bindings
+    console.log('Cleaning component instances...');
+    const instances = figma.root.findAll(n => n.type === 'INSTANCE') as InstanceNode[];
+    for (const instance of instances) {
+      try {
+        if ('componentProperties' in instance) {
+          const properties = instance.componentProperties;
+          for (const [key, prop] of Object.entries(properties)) {
+            if (prop.boundVariables) {
+              for (const varId of variableIds) {
+                if (prop.boundVariables.hasOwnProperty(varId)) {
+                  try {
+                    // Clear the binding by reassigning the property
+                    const currentValue = (instance as any)[key];
+                    (instance as any)[key] = currentValue;
+                    console.log(`✅ Cleared binding for ${key} in ${instance.name}`);
+                  } catch (error) {
+                    console.warn(`⚠️ Failed to clear binding in ${instance.name}: ${error}`);
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn(`⚠️ Error processing instance ${instance.name}: ${error}`);
+      }
+    }
+
+    // Step 2: Clear text node bindings
+    console.log('Cleaning text nodes...');
+    const textNodes = figma.root.findAll(n => n.type === 'TEXT') as TextNode[];
+    for (const node of textNodes) {
+      try {
+        if (node.boundVariables) {
+          for (const [prop, binding] of Object.entries(node.boundVariables)) {
+            if (!binding) continue;
+            
+            const bindings = Array.isArray(binding) ? binding : [binding];
+            for (const b of bindings) {
+              if (b?.type === 'VARIABLE_ALIAS' && typeof b.id === 'string' && variableIds.includes(b.id)) {
+                try {
+                  // Clear text node binding
+                  node.setBoundVariable(
+                    prop as VariableBindableTextField | VariableBindableNodeField,
+                    null
+                  );
+                  console.log(`✅ Cleared text binding for ${prop} in ${node.name}`);
+                } catch (error) {
+                  console.warn(`⚠️ Failed to clear text binding: ${error}`);
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.warn(`⚠️ Error processing text node ${node.name}: ${error}`);
+      }
+    }
+
+    // Step 3: Clear effect variables
+    console.log('Cleaning effect variables...');
+    const nodesWithEffects = figma.root.findAll(n => 'effects' in n && n.effects?.length > 0);
+    for (const node of nodesWithEffects) {
+      try {
+        if ('effects' in node) {
+          const cleanedEffects = (node.effects || []).map(effect => {
+            // Check all possible variable bindings in effects
+            const boundVars = effect.boundVariables || {};
+            const hasTargetBinding = Object.values(boundVars).some(binding => {
+              if (!binding) return false;
+              const b = binding as VariableAlias;
+              return b.type === 'VARIABLE_ALIAS' && variableIds.includes(b.id);
+            });
+
+            if (hasTargetBinding) {
+              // Create new effect without any variable bindings
+              const { boundVariables, ...cleanEffect } = effect;
+              return cleanEffect;
+            }
+            return effect;
+          });
+          (node as any).effects = cleanedEffects;
+        }
+      } catch (error) {
+        console.warn(`⚠️ Error cleaning effects for node ${node.name}: ${error}`);
+      }
+    }
+
+    // Step 4: Clear variable references in other variables
+    console.log('Cleaning variable references...');
+    const collections = figma.variables.getLocalVariableCollections();
+    for (const collection of collections) {
+      for (const varId of collection.variableIds) {
+        const variable = figma.variables.getVariableById(varId);
+        if (!variable || variableIds.includes(varId)) continue;
+
+        for (const [modeId, value] of Object.entries(variable.valuesByMode)) {
+          if (typeof value === 'object' && value !== null && 'id' in value) {
+            if (variableIds.includes(value.id)) {
+              try {
+                const defaultValue = (() => {
+                  switch (variable.resolvedType) {
+                    case 'COLOR': return { r: 0, g: 0, b: 0, a: 1 };
+                    case 'FLOAT': return 0;
+                    case 'BOOLEAN': return false;
+                    default: return '';
+                  }
+                })();
+                variable.setValueForMode(modeId, defaultValue);
+                console.log(`✅ Cleared reference in ${variable.name} for mode ${modeId}`);
+              } catch (error) {
+                console.warn(`⚠️ Failed to clear variable reference: ${error}`);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Step 5: Force garbage collection
+    console.log('Forcing garbage collection...');
+    await figma.getNodeByIdAsync('0:0');
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+  } catch (error) {
+    console.error('❌ Error in deep clean:', error);
+    throw error;
+  }
+}
+
+// Helper function to clear effect bindings
+async function clearEffectBindings(ids: string[]): Promise<void> {
+  console.log('🧹 Clearing effect bindings for variables:', ids);
+  
+  const nodesWithEffects = figma.root.findAll(n => 
+    'effects' in n && (n as any).effects?.some((e: Effect) => 
+      (e as any).boundVariables && Object.values((e as any).boundVariables).some(binding => {
+        if (!binding) return false;
+        const b = binding as VariableAlias;
+        return b.type === 'VARIABLE_ALIAS' && ids.includes(b.id);
+      })
+    )
+  );
+  
+  for (const node of nodesWithEffects) {
+    if ('effects' in node) {
+      try {
+        const cleanedEffects = ((node as any).effects || []).map((effect: Effect) => {
+          if (!(effect as any).boundVariables) return effect;
+          
+          // Create new effect without variable bindings that are being deleted
+          const { boundVariables, ...cleanEffect } = effect as any;
+          const newBindings: Record<string, VariableAlias> = {};
+          
+          Object.entries(boundVariables).forEach(([key, binding]) => {
+            if (!binding) return;
+            const b = binding as VariableAlias;
+            if (b.type !== 'VARIABLE_ALIAS' || !ids.includes(b.id)) {
+              newBindings[key] = binding as VariableAlias;
+            }
+          });
+          
+          if (Object.keys(newBindings).length > 0) {
+            (cleanEffect as any).boundVariables = newBindings;
+          }
+          
+          return cleanEffect;
+        });
+        
+        (node as any).effects = cleanedEffects;
+      } catch (error) {
+        console.warn(`⚠️ Failed to clean effects for node ${node.name}:`, error);
+      }
+    }
+  }
+}
+
+// Helper function to clear text style bindings
+async function clearTextStyleBindings(ids: string[]): Promise<void> {
+  console.log('🧹 Clearing text style bindings for variables:', ids);
+  
+  const textStyles = figma.getLocalTextStyles();
+  for (const style of textStyles) {
+    try {
+      if (style.boundVariables) {
+        for (const [prop, binding] of Object.entries(style.boundVariables)) {
+          if (!binding) continue;
+          const bindings = Array.isArray(binding) ? binding : [binding];
+          for (const b of bindings) {
+            if (b?.type === 'VARIABLE_ALIAS' && ids.includes(b.id)) {
+              // Only set text-specific bindings
+              if (prop === 'fontSize' || prop === 'letterSpacing' || prop === 'lineHeight' || prop === 'paragraphIndent' || prop === 'paragraphSpacing') {
+                style.setBoundVariable(prop, null);
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`⚠️ Failed to clean text style ${style.name}:`, error);
+    }
+  }
+}
+
+// Helper function to clear component bindings
+async function clearComponentBindings(ids: string[]): Promise<void> {
+  console.log('🧹 Clearing component bindings for variables:', ids);
+  
+  interface VariableValue {
+    type: 'VARIABLE';
+    id: string;
+  }
+
+  // Type guard for variable default value
+  const isVariableValue = (value: any): value is VariableValue => {
+    return value && typeof value === 'object' && 
+           'type' in value && value.type === 'VARIABLE' &&
+           'id' in value && typeof value.id === 'string';
+  };
+  
+  // Handle master components first
+  const masterComponents = figma.root.findAll(n => 
+    n.type === 'COMPONENT' && 
+    Object.entries(n.componentPropertyDefinitions || {}).some(([_, def]) => {
+      const defaultValue = def.defaultValue;
+      if (!defaultValue || typeof defaultValue !== 'object') return false;
+      return isVariableValue(defaultValue) && ids.includes(defaultValue.id);
+    })
+  ) as ComponentNode[];
+
+  for (const component of masterComponents) {
+    try {
+      const definitions = component.componentPropertyDefinitions;
+      for (const [key, def] of Object.entries(definitions)) {
+        const defaultValue = def.defaultValue;
+        if (!defaultValue || typeof defaultValue !== 'object') continue;
+        
+        if (isVariableValue(defaultValue) && ids.includes(defaultValue.id)) {
+          // Clear the default value while preserving other property settings
+          component.editComponentProperty(key, {
+            ...def,
+            defaultValue: undefined
+          });
+        }
+      }
+    } catch (error) {
+      console.warn(`⚠️ Failed to clean master component ${component.name}:`, error);
+    }
+  }
+
+  // Handle component instances
+  const instances = figma.root.findAll(n => n.type === 'INSTANCE') as InstanceNode[];
+  for (const instance of instances) {
+    try {
+      if (instance.componentProperties) {
+        for (const [key, prop] of Object.entries(instance.componentProperties)) {
+          if (prop.boundVariables) {
+            for (const [subKey, binding] of Object.entries(prop.boundVariables)) {
+              if (!binding) continue;
+              const bindings = Array.isArray(binding) ? binding : [binding];
+              for (const b of bindings) {
+                if (b?.type === 'VARIABLE_ALIAS' && ids.includes(b.id)) {
+                  // Reset to component's default value
+                  const currentValue = (instance as any)[key];
+                  (instance as any)[key] = currentValue;
+                }
+              }
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.warn(`⚠️ Failed to clean instance ${instance.name}:`, error);
+    }
+  }
+}
+
+// Main function for guaranteed variable deletion
+async function guaranteedVariableDeletion(ids: string[]): Promise<{ success: boolean; deletedIds: string[]; errors: string[] }> {
+  console.log('🚀 Starting guaranteed variable deletion for:', ids);
+  
+  const sanitizedIds = ids.map(id => id.replace(/^VariableID:/, ''));
+  const errors: string[] = [];
+  
+  try {
+    // 1. Extended safety check
+    const existingVars = sanitizedIds.filter(id => {
+      const varExists = figma.variables.getVariableById(id);
+      if (!varExists) {
+        console.log(`⚠️ Variable ${id} no longer exists`);
+        return false;
+      }
+      return true;
+    });
+
+    if (existingVars.length === 0) {
+      return { success: true, deletedIds: [], errors: ['No valid variables to delete'] };
+    }
+
+    // 2. Multi-layer deep cleanup
+    console.log('🧹 Starting deep cleanup...');
+    await clearComponentBindings(existingVars);
+    await clearTextStyleBindings(existingVars);
+    await clearEffectBindings(existingVars);
+
+    // 3. Force garbage collection
+    console.log('🗑️ Forcing garbage collection...');
+    await figma.getNodeByIdAsync('0:0');
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // 4. Final deletion with batch processing
+    console.log('🗑️ Executing final deletion...');
+    const deletedIds: string[] = [];
+    const BATCH_SIZE = 25;
+
+    for (let i = 0; i < existingVars.length; i += BATCH_SIZE) {
+      const batch = existingVars.slice(i, i + BATCH_SIZE);
+      try {
+        for (const id of batch) {
+          const variable = figma.variables.getVariableById(id);
+          if (variable) {
+            await variable.remove();
+            deletedIds.push(id);
+            console.log(`✅ Successfully deleted variable: ${variable.name} (${id})`);
+          }
+        }
+        // Add small delay between batches
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (error) {
+        const errorMessage = `Failed to process batch ${i / BATCH_SIZE + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        console.error(errorMessage);
+        errors.push(errorMessage);
+      }
+    }
+
+    // 5. Verify deletion and force UI refresh
+    console.log('🔍 Verifying deletion...');
+    const remainingVars = deletedIds.filter(id => figma.variables.getVariableById(id));
+    if (remainingVars.length > 0) {
+      console.warn('⚠️ Some variables still exist after deletion:', remainingVars);
+      errors.push(`Failed to delete variables: ${remainingVars.join(', ')}`);
+    }
+
+    // Force UI refresh
+    const currentPage = figma.currentPage;
+    currentPage.selection = [currentPage as unknown as SceneNode];
+    setTimeout(() => { currentPage.selection = []; }, 100);
+
+    return {
+      success: deletedIds.length > 0,
+      deletedIds,
+      errors
+    };
+  } catch (error) {
+    const errorMessage = `Critical error during deletion: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    console.error(errorMessage);
+    errors.push(errorMessage);
+    return {
+      success: false,
+      deletedIds: [],
+      errors
+    };
+  }
+}
+
+// Update safeDeleteVariables to use the new guaranteed deletion
+async function safeDeleteVariables(variableIds: string[]): Promise<VariableResult[]> {
+  const deletedVariables: VariableResult[] = [];
+  
+  try {
+    console.log('🔍 Starting variable deletion process with raw IDs:', variableIds);
+    
+    const result = await guaranteedVariableDeletion(variableIds);
+    
+    if (!result.success) {
+      throw new Error(`Failed to delete variables: ${result.errors.join(', ')}`);
+    }
+
+    // Record successfully deleted variables
+    for (const id of result.deletedIds) {
+      const variable = figma.variables.getVariableById(id);
+      if (variable) {
+        const collection = figma.variables.getVariableCollectionById(variable.variableCollectionId);
+        deletedVariables.push({
+          name: variable.name,
+          collection: collection?.name || 'Unknown Collection',
+          id: id
+        });
+      }
+    }
+
+    // Force UI refresh with multiple techniques
+    await figma.viewport.scrollAndZoomIntoView([figma.root]);
+    figma.root.setRelaunchData({ refresh: '1' });
+    
+    if (deletedVariables.length === 0 && result.errors.length > 0) {
+      throw new Error(`Failed to delete any variables: ${result.errors.join(', ')}`);
+    }
+
+    console.log(`📊 Deletion summary: ${deletedVariables.length} variables deleted:`, deletedVariables);
+    return deletedVariables;
+  } catch (error) {
+    console.error('❌ Error in safeDeleteVariables:', error);
+    throw error;
+  }
+}
+
 // Event Handlers
 figma.ui.onmessage = async (msg) => {
-  console.log('📨 Plugin received message:', msg.type);
+  console.log('📨 Plugin received message:', msg.type, msg);
 
   switch (msg.type) {
     case 'init':
@@ -787,86 +1097,61 @@ figma.ui.onmessage = async (msg) => {
       }
       break;
 
-    case 'delete-unused':
+    case 'delete-variables':
       try {
-        console.time('Variable Deletion');
-        console.log('🚀 Starting variable deletion process');
-
-        // Show initial loading state
-        figma.ui.postMessage({
-          type: 'deletion-progress',
-          message: 'Analyzing variables...',
-          progress: 0
-        });
-
-        // Enable edit mode and get permissions
-        figma.parameters.on('input', () => {});
-        await figma.saveVersionHistoryAsync('Preparing to delete unused variables');
-
-        // Get truly unused variables with enhanced detection
-        const unusedVars = await getTrulyUnusedVariables();
-        console.log(`📊 Found ${unusedVars.length} truly unused variables`);
-
-        if (unusedVars.length === 0) {
-          figma.notify('No unused variables found');
-          figma.ui.postMessage({
-            type: 'deletion-complete',
-            stats: { totalVariables: 0 }
-          });
-          return;
+        console.log('🗑️ Starting variable deletion...', msg.variables);
+        
+        if (!msg.variables || msg.variables.length === 0) {
+          throw new Error('No variables selected for deletion');
         }
 
-        // Show confirmation UI with count
-        figma.ui.postMessage({
-          type: 'confirm-deletion',
-          count: unusedVars.length,
-          message: `Found ${unusedVars.length} unused variables. Starting safe deletion process...`
+        // Notify deletion start
+        figma.notify('Deleting variables...', { timeout: 2000 });
+        
+        const deletedVars = await safeDeleteVariables(msg.variables);
+        console.log('✅ Deletion completed, sending results to UI:', deletedVars);
+        
+        if (deletedVars.length === 0) {
+          throw new Error('Failed to delete any variables');
+        }
+
+        // Force refresh of the Figma UI
+        await figma.viewport.scrollAndZoomIntoView([figma.root]);
+        figma.root.setRelaunchData({ refresh: '' });
+        
+        // Send deletion complete message first
+        figma.ui.postMessage({ 
+          type: 'deletion-complete',
+          deletedVariables: deletedVars.map(v => ({
+            name: v.name,
+            collection: v.collection,
+            id: v.id
+          }))
         });
 
-        // Perform the deletion
-        try {
-          // Process variables with safe deletion
-          await safeDeleteVariables(unusedVars);
-          console.timeEnd('Variable Deletion');
+        // Wait a bit before showing notification
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        figma.notify(`Successfully deleted ${deletedVars.length} variables`, { timeout: 2000 });
 
-          // Get updated state after deletion
-          const remainingVariables = figma.variables.getLocalVariables();
-          const updatedCollections = figma.variables.getLocalVariableCollections().map(collection => ({
-            id: collection.id,
-            name: collection.name
-          }));
-
-          // Check which variables were successfully deleted
-          const deletedVars = unusedVars.filter((v: Variable) => !figma.variables.getVariableById(v.id));
-
-          // Send completion notification and update UI
-          console.log(`Successfully deleted: ${deletedVars.map(v => v.name).join(', ')}`);
-          figma.notify(`Successfully deleted ${deletedVars.length} variables`);
-
-          // Trigger UI update
-          figma.ui.postMessage({
-            type: 'deletion-complete',
-            deletedVariables: deletedVars,
-            collections: updatedCollections,
-            stats: {
-              executionTime: 0,
-              totalVariables: remainingVariables.length
-            }
-          });
-
-          // Force cache refresh
-          figma.ui.postMessage({ type: 'RELOAD_FILE' });
-        } catch (deleteError) {
-          console.error('❌ Error during deletion:', deleteError);
-          figma.notify('Failed to complete variable deletion');
-          throw deleteError;
-        }
+        // Refresh collections after deletion
+        const collections = figma.variables.getLocalVariableCollections().map(collection => ({
+          id: collection.id,
+          name: collection.name
+        }));
+        
+        figma.ui.postMessage({ 
+          type: 'collections',
+          collections: collections
+        });
       } catch (error) {
-        console.error('❌ Error deleting unused variables:', error);
-        figma.notify('Failed to delete unused variables');
+        console.error('❌ Error deleting variables:', error);
+        figma.notify('Failed to delete variables: ' + (error instanceof Error ? error.message : 'Unknown error'), { error: true });
+        figma.ui.postMessage({ 
+          type: 'error',
+          message: error instanceof Error ? error.message : 'Failed to delete variables'
+        });
       }
       break;
-
-    // ...rest of the cases...
   }
 };
