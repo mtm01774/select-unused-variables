@@ -20,6 +20,8 @@ interface UIState {
   analysisDone: boolean;
   canPrint: boolean;
   isLoading: boolean;
+  selectedVariables: Set<string>;
+  deletionSuccess: boolean;
 }
 
 interface ProcessingStats {
@@ -308,7 +310,9 @@ const BATCH_CONFIG: BatchConfig = {
 let uiState: UIState = {
   analysisDone: false,
   canPrint: false,
-  isLoading: false
+  isLoading: false,
+  selectedVariables: new Set<string>(),
+  deletionSuccess: false
 };
 
 // Show UI with specific dimensions
@@ -490,160 +494,95 @@ async function processBatch(nodes: SceneNode[], stats: ProcessingStats): Promise
  * Finds all unused variables in the document using batch processing
  */
 async function findUnusedVariables(selectedCollections: string[] = []): Promise<VariableResult[]> {
-  const stats: ProcessingStats = {
-    startTime: Date.now(),
-    nodesProcessed: 0,
-    variablesFound: 0
-  };
-
   try {
-    console.log('🔍 Iniciando pesquisa de variáveis não utilizadas...');
+    console.log('🔍 Iniciando pesquisa de variáveis...');
     
-    // Configurações
-    const BATCH_SIZE = 15;
-    const BATCH_DELAY = 50;
-    const MAX_NODES_PER_PAGE = 500;
-    const COMPLEX_NODE_THRESHOLD = 200;
-    const GC_INTERVAL = 100;
-
-    figma.ui.postMessage({ type: 'progress', message: 'Getting variables...' });
-    
-    // Validar e limpar variáveis antes de começar
+    // Obter todas as variáveis
     const allVariables = await getAllVariables(selectedCollections);
-    const validVariables = allVariables.filter(v => {
-      try {
-        const variable = figma.variables.getVariableById(v.id);
-        const collection = figma.variables.getVariableCollectionById(v.variableCollectionId);
-        return !!variable && !!collection;
-      } catch (error) {
-        return false;
-      }
-    });
-
-    console.log(`📊 Total de variáveis válidas: ${validVariables.length} de ${allVariables.length}`);
+    console.log(`📊 Total de variáveis encontradas: ${allVariables.length}`);
     
+    // Set para armazenar IDs de variáveis em uso (tanto com quanto sem prefixo)
     const usedVarIds = new Set<string>();
     
-    // Função iterativa para coletar nós
-    const collectNodesIteratively = (rootNode: SceneNode): SceneNode[] => {
-      const nodes: SceneNode[] = [];
-      const queue: Array<{ node: SceneNode; depth: number }> = [{ node: rootNode, depth: 0 }];
+    // Verificar uso em todas as páginas
+    for (const page of figma.root.children) {
+      console.log(`\n📄 Analisando página: ${page.name}`);
       
-      while (queue.length > 0 && nodes.length < MAX_NODES_PER_PAGE) {
-        const current = queue.shift();
-        if (!current) continue;
-
+      const processNode = async (node: SceneNode) => {
         try {
-          const { node, depth } = current;
-          if (!node.id || !node.parent) continue;
-          
-          nodes.push(node);
-
-          if ('children' in node) {
-            const children = node.children as SceneNode[];
+          // Verificar variáveis vinculadas
+          if ('boundVariables' in node && node.boundVariables) {
+            const boundVars = node.boundVariables as Record<string, VariableBinding | VariableBinding[]>;
             
-            if (children.length > COMPLEX_NODE_THRESHOLD) {
-              const sampledChildren = children
-                .slice(0, COMPLEX_NODE_THRESHOLD)
-                .filter((_, index) => index % 2 === 0);
+            for (const [property, binding] of Object.entries(boundVars)) {
+              const bindings = Array.isArray(binding) ? binding : [binding];
               
-              for (const child of sampledChildren) {
-                if (depth < 5 && child.id && child.parent) {
-                  queue.push({ node: child, depth: depth + 1 });
+              for (const b of bindings) {
+                if (b?.type === 'VARIABLE_ALIAS' && b.id) {
+                  // Armazenar tanto o ID original quanto o ID limpo
+                  const originalId = b.id;
+                  const cleanId = b.id.replace(/^VariableID:/, '');
+                  
+                  usedVarIds.add(originalId);
+                  usedVarIds.add(cleanId);
+                  
+                  console.log(`🔗 Variável em uso:
+                    Nó: ${node.name}
+                    Propriedade: ${property}
+                    ID Original: ${originalId}
+                    ID Limpo: ${cleanId}
+                  `);
                 }
               }
-            } else {
-              for (const child of children) {
-                if (depth < 8 && child.id && child.parent) {
-                  queue.push({ node: child, depth: depth + 1 });
-                }
-              }
+            }
+          }
+          
+          // Verificar filhos recursivamente
+          if ('children' in node) {
+            for (const child of node.children) {
+              await processNode(child as SceneNode);
             }
           }
         } catch (error) {
-          continue;
+          console.warn(`⚠️ Erro ao processar nó ${node.name}:`, error);
         }
-      }
+      };
       
-      return nodes;
-    };
-
-    // Processar cada página
-    for (const page of figma.root.children) {
-      try {
-        console.log(`📄 Processando página: ${page.name}`);
-        let processedCount = 0;
-
-        for (let i = 0; i < page.children.length; i++) {
-          const rootNode = page.children[i];
-          
-          try {
-            const nodes = collectNodesIteratively(rootNode as SceneNode);
-            
-            for (let j = 0; j < nodes.length; j += BATCH_SIZE) {
-              const batch = nodes.slice(j, j + BATCH_SIZE);
-              
-              try {
-                const batchUsedIds = await processBatch(batch, stats);
-                batchUsedIds.forEach(id => usedVarIds.add(id));
-                processedCount += batch.length;
-
-                if (processedCount % GC_INTERVAL === 0) {
-                  const progress: ProgressUpdate = {
-                    currentBatch: Math.floor(processedCount / BATCH_SIZE),
-                    totalBatches: Math.ceil(page.children.length * COMPLEX_NODE_THRESHOLD / BATCH_SIZE),
-                    nodesProcessed: stats.nodesProcessed,
-                    variablesFound: stats.variablesFound,
-                    timeElapsed: Date.now() - stats.startTime
-                  };
-                  
-                  figma.ui.postMessage({ type: 'progress-update', progress });
-                  await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
-                }
-              } catch (error) {
-                continue;
-              }
-            }
-
-            if (i % 5 === 0) {
-              await new Promise(resolve => setTimeout(resolve, BATCH_DELAY * 2));
-            }
-          } catch (error) {
-            continue;
-          }
-        }
-      } catch (error) {
-        continue;
+      // Processar todos os nós da página
+      for (const node of page.children) {
+        await processNode(node as SceneNode);
       }
     }
-
-    // Verificar estilos
-    const textStyles = figma.getLocalTextStyles();
-    for (let i = 0; i < textStyles.length; i += BATCH_SIZE) {
-      const styleBatch = textStyles.slice(i, i + BATCH_SIZE);
+    
+    // Filtrar variáveis não utilizadas
+    const unusedVars = allVariables.filter(v => {
+      const originalId = v.id;
+      const cleanId = v.id.replace(/^VariableID:/, '');
+      const isUsed = usedVarIds.has(originalId) || usedVarIds.has(cleanId);
       
-      styleBatch.forEach(style => {
-        if (style.boundVariables) {
-          Object.values(style.boundVariables).forEach(binding => {
-            if (binding && typeof binding === 'object' && 'id' in binding) {
-              usedVarIds.add(binding.id);
-            }
-          });
-        }
-      });
-
-      if (i % GC_INTERVAL === 0) {
-        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
-      }
-    }
-
-    const unusedVars = validVariables.filter(v => !usedVarIds.has(v.id));
+      console.log(`\n📝 Verificando variável: ${v.name}
+        ID Original: ${originalId}
+        ID Limpo: ${cleanId}
+        Em uso: ${isUsed}
+      `);
+      
+      return !isUsed;
+    });
+    
+    // Log do resultado final
+    console.log('\n📊 Resultado da análise:', {
+      totalVariables: allVariables.length,
+      usedVariables: usedVarIds.size,
+      unusedVariables: unusedVars.length,
+      usedIds: Array.from(usedVarIds)
+    });
+    
     return unusedVars.map(v => ({
       name: v.name,
       collection: v.collection,
       id: v.id
     }));
-
+    
   } catch (error) {
     console.error('❌ Erro ao procurar variáveis não utilizadas:', error);
     throw new Error(`Falha ao procurar variáveis não utilizadas: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
@@ -757,5 +696,231 @@ figma.ui.onmessage = async (msg) => {
         figma.notify('Failed to print unused variables');
       }
       break;
+
+    case 'delete-variables':
+      try {
+        const { variableIds } = msg;
+        console.log('\n🔍 Iniciando processo de exclusão em lote...');
+        console.log('IDs recebidos:', variableIds);
+
+        if (!variableIds?.length) {
+          throw new Error('Nenhuma variável para excluir');
+        }
+
+        let successCount = 0;
+        const errors: string[] = [];
+
+        for (const id of variableIds) {
+          try {
+            console.log(`\n🔍 Processando variável ${id}...`);
+            
+            // Tentar encontrar a variável (com prefixo ou sem)
+            const cleanId = id.replace(/^VariableID:/, '');
+            console.log('ID limpo:', cleanId);
+            
+            // Tentar obter a variável de várias formas
+            let variable = figma.variables.getVariableById(id);
+            if (!variable) {
+              console.log('Tentando com ID limpo...');
+              variable = figma.variables.getVariableById(cleanId);
+            }
+
+            if (!variable) {
+              // Tentar encontrar a variável listando todas as variáveis
+              console.log('Tentando encontrar variável em todas as variáveis...');
+              const allVars = figma.variables.getLocalVariables();
+              console.log('Total de variáveis:', allVars.length);
+              
+              const foundVar = allVars.find(v => 
+                v.id === id || 
+                v.id === cleanId || 
+                v.id.replace(/^VariableID:/, '') === cleanId
+              );
+              
+              if (foundVar) {
+                console.log('Variável encontrada pelo método alternativo');
+                variable = foundVar;
+              }
+            }
+
+            if (!variable) {
+              console.log('❌ Variável não encontrada');
+              errors.push(`Variável não encontrada: ${id}`);
+              continue;
+            }
+
+            console.log(`✅ Encontrada: ${variable.name} (${variable.id})`);
+            
+            // Verificar se a variável está realmente não utilizada
+            console.log('Verificando referências...');
+            const isReferenced = await checkVariableReferences(variable);
+            if (isReferenced) {
+              console.log('⚠️ Variável está em uso, pulando...');
+              errors.push(`Variável ${variable.name} está em uso`);
+              continue;
+            }
+
+            // Tentar excluir
+            console.log('🗑️ Iniciando processo de exclusão...');
+            try {
+              // Verificar permissões
+              console.log('Verificando permissões...');
+              const collection = figma.variables.getVariableCollectionById(variable.variableCollectionId);
+              if (!collection) {
+                throw new Error('Coleção não encontrada');
+              }
+
+              // Tentar excluir
+              console.log('Executando comando remove()...');
+              variable.remove();
+              
+              // Aguardar um momento para a operação ser processada
+              console.log('Aguardando processamento...');
+              await new Promise(resolve => setTimeout(resolve, 500));
+              
+              // Verificar se foi excluída (tentar ambos os formatos de ID)
+              console.log('Verificando se a variável ainda existe...');
+              const stillExists = figma.variables.getVariableById(variable.id) || 
+                                figma.variables.getVariableById(cleanId);
+              
+              if (stillExists) {
+                console.log('⚠️ Variável ainda existe após tentativa de exclusão');
+                throw new Error(`Falha ao excluir ${variable.name}`);
+              }
+
+              console.log('✅ Excluída com sucesso!');
+              successCount++;
+
+            } catch (removeError) {
+              console.error('❌ Erro durante a remoção:', removeError);
+              throw removeError;
+            }
+
+          } catch (error) {
+            console.error('❌ Erro:', error);
+            errors.push(error instanceof Error ? error.message : String(error));
+          }
+        }
+
+        // Relatório final
+        console.log('\n📊 Relatório de exclusão:');
+        console.log(`Total processado: ${variableIds.length}`);
+        console.log(`Sucesso: ${successCount}`);
+        console.log(`Erros: ${errors.length}`);
+        
+        if (errors.length > 0) {
+          console.log('\nErros encontrados:');
+          errors.forEach(err => console.log(`- ${err}`));
+        }
+
+        // Notificar o usuário
+        if (successCount > 0) {
+          figma.notify(`✅ ${successCount} variáveis excluídas com sucesso`);
+          figma.ui.postMessage({ type: 'delete-result', success: true });
+        } else {
+          throw new Error('Nenhuma variável foi excluída');
+        }
+
+      } catch (error) {
+        console.error('\n❌ Erro durante o processo:', error);
+        figma.notify(error instanceof Error ? error.message : 'Erro ao excluir variáveis', { error: true });
+        figma.ui.postMessage({ 
+          type: 'delete-result',
+          success: false,
+          error: error instanceof Error ? error.message : 'Erro desconhecido'
+        });
+      }
+      break;
+
+    case 'close':
+      figma.closePlugin();
+      break;
   }
 };
+
+// Função auxiliar para verificar referências de forma mais robusta
+async function checkVariableReferences(variable: Variable): Promise<boolean> {
+  try {
+    const collections = figma.variables.getLocalVariableCollections();
+    
+    // Verificar referências em outras variáveis
+    for (const collection of collections) {
+      for (const varId of collection.variableIds) {
+        if (varId === variable.id) continue;
+        
+        const var2 = figma.variables.getVariableById(varId);
+        if (!var2) continue;
+
+        // Verificar todas as referências em todos os modos
+        for (const [modeId, value] of Object.entries(var2.valuesByMode)) {
+          if (typeof value === 'object' && value !== null) {
+            const valueObj = value as any;
+            // Comparar os IDs limpos (sem o prefixo VariableID:)
+            if (valueObj.type === 'VARIABLE_ALIAS' && 
+                valueObj.id.replace(/^VariableID:/, '') === variable.id) {
+              console.log(`🔗 Variable ${variable.name} is referenced by ${var2.name}`);
+              return true;
+            }
+          }
+        }
+      }
+    }
+
+    // Verificar referências em componentes e instâncias
+    for (const page of figma.root.children) {
+      const hasReferences = await checkNodeForReferences(page, variable.id);
+      if (hasReferences) {
+        console.log(`🔗 Variable ${variable.name} is referenced in page ${page.name}`);
+        return true;
+      }
+    }
+
+    console.log(`✨ Variable ${variable.name} has no references`);
+    return false;
+  } catch (error) {
+    console.error('❌ Error checking variable references:', error);
+    return true; // Em caso de erro, assumir que há referências por segurança
+  }
+}
+
+// Função auxiliar para verificar referências em nós
+async function checkNodeForReferences(node: BaseNode, variableId: string): Promise<boolean> {
+  try {
+    // Verificar se o nó tem variáveis vinculadas
+    if ('boundVariables' in node) {
+      const boundVars = (node as any).boundVariables;
+      if (boundVars) {
+        for (const prop in boundVars) {
+          const binding = boundVars[prop];
+          if (Array.isArray(binding)) {
+            for (const b of binding) {
+              // Comparar os IDs limpos
+              if (b?.type === 'VARIABLE_ALIAS' && 
+                  b.id.replace(/^VariableID:/, '') === variableId) {
+                console.log(`🔗 Found reference in node ${node.name} (${node.type})`);
+                return true;
+              }
+            }
+          } else if (binding?.type === 'VARIABLE_ALIAS' && 
+                     binding.id.replace(/^VariableID:/, '') === variableId) {
+            console.log(`🔗 Found reference in node ${node.name} (${node.type})`);
+            return true;
+          }
+        }
+      }
+    }
+
+    // Verificar filhos recursivamente
+    if ('children' in node) {
+      for (const child of (node as any).children) {
+        const hasReferences = await checkNodeForReferences(child, variableId);
+        if (hasReferences) return true;
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error(`❌ Error checking node ${node.name} for references:`, error);
+    return false;
+  }
+}

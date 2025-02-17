@@ -244,44 +244,55 @@
     .variable-item {
       display: flex;
       align-items: center;
-      justify-content: space-between;
       padding: 8px;
-      background: #FFFFFF;
-      border-radius: 2px;
-      margin-bottom: 1px;
-      transition: background-color 0.1s ease;
+      border-radius: 6px;
+      margin-bottom: 4px;
+      background: white;
     }
     
-    .variable-item:hover {
-      background-color: rgba(0, 0, 0, 0.06);
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      margin-right: 12px;
+      cursor: pointer;
+    }
+
+    .variable-info {
+      display: flex;
+      flex-direction: column;
     }
 
     .variable-name {
-      font-weight: 400;
-      color: #000;
-      letter-spacing: -0.006em;
-      font-size: 12px;
+      font-weight: 500;
+      color: #333;
     }
-    
+
     .collection-name {
-      color: rgba(0, 0, 0, 0.8);
       font-size: 12px;
-      letter-spacing: -0.003em;
-      opacity: 0.5;
+      color: #666;
     }
 
-    .results-summary {
-      text-align: left;
-      margin: 0 0 8px 0;
-      padding: 8px;
-      font-size: 12px;
-      letter-spacing: -0.006em;
-      color: rgba(0, 0, 0, 0.8);
+    .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
     }
 
-    .results-count {
-      font-weight: 600;
-      color: #000;
+    .success-message {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      margin: 32px 0;
+    }
+
+    .success-message svg {
+      margin-bottom: 16px;
+    }
+
+    .success-message p {
+      color: #333;
+      margin: 0;
     }
     
     button {
@@ -395,8 +406,8 @@
         </div>
         <div id="collections" class="collections-list">
           <div class="select-all">
-            <input type="checkbox" id="select-all" checked>
-            <label for="select-all">All</label>
+            <input type="checkbox" id="select-all-collections" checked>
+            <label for="select-all-collections">All</label>
           </div>
         </div>
         <div id="step1-progress" class="progress" style="display: none;">
@@ -412,18 +423,37 @@
 
     <!-- Step 2: Analysis Results -->
     <div id="step2" class="step">
-      <div class="content-wrapper">
-        <div class="header">
-          <div class="back" id="back-button" role="button" tabindex="0">
-            <span class="chevron-left"></span>
-          </div>
-          <h3>2. Unused Variables</h3>
+      <div class="header">
+        <div class="back" onclick="showStep('step1')">
+          <div class="chevron-left"></div>
         </div>
-        
-        <div id="variable-list"></div>
+        <h3>Unused Variables</h3>
       </div>
-      <div class="footer-actions">
-        <button id="print-button">Print on Figma</button>
+      <div class="content">
+        <div id="unusedVarsContainer">
+          <!-- Variables will be listed here -->
+        </div>
+        <div class="actions">
+          <button id="selectAllBtn" class="button secondary" onclick="toggleSelectAll()">Select All</button>
+          <button id="deleteSelectedBtn" class="button primary" onclick="deleteSelected()" disabled>Delete Selected</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Success Message -->
+    <div id="step3" class="step">
+      <div class="header">
+        <h3>Success!</h3>
+      </div>
+      <div class="content">
+        <div class="success-message">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="16" fill="#1BC47D"/>
+            <path d="M22.6 12.4L14.6 20.4L9.40002 15.2" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <p>Selected variables have been deleted successfully!</p>
+        </div>
+        <button class="button primary" onclick="closePlugin()">Done</button>
       </div>
     </div>
   </div>
@@ -431,13 +461,12 @@
   <script>
     const step1 = document.getElementById('step1');
     const step2 = document.getElementById('step2');
+    const step3 = document.getElementById('step3');
     const startButton = document.getElementById('start-search');
-    const backButton = document.getElementById('back-button');
     const step1Progress = document.getElementById('step1-progress');
     const collections = document.getElementById('collections');
-    const printButton = document.getElementById('print-button');
-    const selectAllCheckbox = document.getElementById('select-all');
-    const variableList = document.getElementById('variable-list');
+    const selectAllCollectionsCheckbox = document.getElementById('select-all-collections');
+    const unusedVarsContainer = document.getElementById('unusedVarsContainer');
 
     // Initialize
     window.onload = () => {
@@ -450,22 +479,13 @@
       startButton.disabled = false;
     }
 
-    // Handle navigation
-    backButton.onclick = () => {
-      step2.classList.remove('active');
-      step1.classList.add('active');
-      resetState();
-    };
-
-    // Handle keyboard navigation for back button
-    backButton.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        step2.classList.remove('active');
-        step1.classList.add('active');
-        resetState();
-      }
-    });
+    // Função para mostrar um step específico
+    function showStep(stepId) {
+      [step1, step2, step3].forEach(step => {
+        step.classList.remove('active');
+      });
+      document.getElementById(stepId).classList.add('active');
+    }
 
     // Handle messages from the plugin
     window.onmessage = (event) => {
@@ -477,7 +497,13 @@
       switch (msg.type) {
         case 'collections':
           collections.innerHTML = ''; // Clear existing content
-          collections.appendChild(selectAllCheckbox.parentElement);
+          const selectAllDiv = document.createElement('div');
+          selectAllDiv.className = 'select-all';
+          selectAllDiv.innerHTML = `
+            <input type="checkbox" id="select-all-collections" checked>
+            <label for="select-all-collections">All</label>
+          `;
+          collections.appendChild(selectAllDiv);
           
           if (!msg.collections || msg.collections.length === 0) {
             collections.innerHTML += '<p>No variable collections found in this file</p>';
@@ -508,35 +534,36 @@
           break;
 
         case 'complete':
-          // Esconder spinner apenas quando os resultados chegarem
           step1Progress.style.display = 'none';
           
           if (msg.variables && msg.variables.length > 0) {
-            variableList.innerHTML = `
+            unusedVarsContainer.innerHTML = `
               <div class="results-summary">
                 Found <span class="results-count">${msg.variables.length}</span> unused variables
               </div>
-              <ul class="variable-list">
+              <div class="variable-list">
                 ${msg.variables.map(v => `
-                  <li class="variable-item">
-                    <span class="variable-name">${v.name}</span>
-                    <span class="collection-name">${v.collection}</span>
-                  </li>
+                  <div class="variable-item">
+                    <label class="checkbox-container">
+                      <input type="checkbox" data-id="${v.id}" onchange="toggleVariable('${v.id}')">
+                      <span class="checkmark"></span>
+                    </label>
+                    <div class="variable-info">
+                      <span class="variable-name">${v.name}</span>
+                      <span class="collection-name">${v.collection}</span>
+                    </div>
+                  </div>
                 `).join('')}
-              </ul>
+              </div>
             `;
-            printButton.style.display = 'block';
+            showStep('step2');
           } else {
-            variableList.innerHTML = `
+            unusedVarsContainer.innerHTML = `
               <div class="results-summary">
                 No unused variables found
               </div>
             `;
-            printButton.style.display = 'none';
           }
-
-          step1.classList.remove('active');
-          step2.classList.add('active');
           resetState();
           break;
 
@@ -544,13 +571,25 @@
           console.error('❌ Error received:', msg.message);
           alert(msg.message);
           break;
+
+        case 'delete-result':
+          if (msg.success) {
+            showStep('step3');
+          } else {
+            // Se houver erro, voltar para o step2 e mostrar mensagem
+            showStep('step2');
+            if (msg.error) {
+              alert(msg.error);
+            }
+          }
+          break;
       }
     };
 
     // Send selected collections to the plugin
     startButton.onclick = () => {
       const selectedCollections = Array.from(
-        document.querySelectorAll('#collections input[type="checkbox"]:checked')
+        document.querySelectorAll('#collections input[type="checkbox"]:checked:not(#select-all-collections)')
       ).map(input => input.value);
       
       if (selectedCollections.length === 0) {
@@ -558,13 +597,9 @@
         return;
       }
 
-      // 1. Primeiro desabilitar o botão
       startButton.disabled = true;
-      
-      // 2. Mostrar spinner imediatamente
       step1Progress.style.display = 'block';
       
-      // 3. Usar setTimeout para garantir que a UI atualize antes de iniciar o scan
       setTimeout(() => {
         parent.postMessage({
           pluginMessage: {
@@ -575,23 +610,89 @@
       }, 0);
     };
 
-    // Print unused variables
-    printButton.onclick = (e) => {
-      e.preventDefault();
-      parent.postMessage({
-        pluginMessage: {
-          type: 'print-unused'
+    // Handle select all checkbox for collections
+    document.addEventListener('change', (e) => {
+      if (e.target.id === 'select-all-collections') {
+        const checkboxes = document.querySelectorAll('.collection-item input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+          checkbox.checked = e.target.checked;
+        });
+        startButton.disabled = !e.target.checked && checkboxes.length > 0;
+      } else if (e.target.closest('.collection-item')) {
+        // Atualizar o estado do "select all" baseado nas collections
+        const allCheckboxes = Array.from(document.querySelectorAll('.collection-item input[type="checkbox"]'));
+        const selectAllCheckbox = document.getElementById('select-all-collections');
+        selectAllCheckbox.checked = allCheckboxes.every(cb => cb.checked);
+        selectAllCheckbox.indeterminate = !selectAllCheckbox.checked && allCheckboxes.some(cb => cb.checked);
+        
+        // Habilitar/desabilitar o botão de início baseado se há alguma seleção
+        startButton.disabled = !allCheckboxes.some(cb => cb.checked);
+      }
+    });
+
+    let selectedVariables = new Set();
+
+    function toggleVariable(id) {
+      if (selectedVariables.has(id)) {
+        selectedVariables.delete(id);
+      } else {
+        selectedVariables.add(id);
+      }
+      updateDeleteButton();
+    }
+
+    function toggleSelectAll() {
+      const checkboxes = document.querySelectorAll('#unusedVarsContainer input[type="checkbox"]');
+      const selectAllBtn = document.getElementById('selectAllBtn');
+      const isSelectingAll = selectAllBtn.textContent === 'Select All';
+      
+      checkboxes.forEach(checkbox => {
+        checkbox.checked = isSelectingAll;
+        const id = checkbox.dataset.id;
+        if (isSelectingAll) {
+          selectedVariables.add(id);
+        } else {
+          selectedVariables.delete(id);
+        }
+      });
+      
+      selectAllBtn.textContent = isSelectingAll ? 'Deselect All' : 'Select All';
+      updateDeleteButton();
+    }
+
+    function updateDeleteButton() {
+      const deleteBtn = document.getElementById('deleteSelectedBtn');
+      deleteBtn.disabled = selectedVariables.size === 0;
+    }
+
+    async function deleteSelected() {
+      if (selectedVariables.size === 0) return;
+      
+      const variableIds = Array.from(selectedVariables);
+      console.log('🗑️ Sending variables to delete:', variableIds);
+      
+      // Mostrar loading state
+      const deleteBtn = document.getElementById('deleteSelectedBtn');
+      const originalText = deleteBtn.textContent;
+      deleteBtn.textContent = 'Deleting...';
+      deleteBtn.disabled = true;
+      
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'delete-variables', 
+          variableIds 
         }
       }, '*');
-    };
+    }
 
-    // Handle select all checkbox
-    selectAllCheckbox.addEventListener('change', (e) => {
-      const checkboxes = document.querySelectorAll('.collection-item input[type="checkbox"]');
-      checkboxes.forEach(checkbox => {
-        checkbox.checked = e.target.checked;
-      });
-    });
+    function closePlugin() {
+      console.log('🔌 Closing plugin...');
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'close'
+        }
+      }, '*');
+    }
   </script>
 </body>
 </html>
