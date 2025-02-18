@@ -638,5 +638,35 @@ figma.ui.onmessage = async (msg) => {
                 figma.notify('Failed to print unused variables');
             }
             break;
+
+        case 'delete-variables':
+            try {
+                const deletedIds = [];
+                const errors = [];
+                
+                for (const variableObj of msg.variables) {
+                    const varId = variableObj.id;
+                    try {
+                        const variable = figma.variables.getVariableById(varId);
+                        if (variable) {
+                            variable.remove();
+                            deletedIds.push(varId);
+                        }
+                    } catch (error) {
+                        errors.push(`Failed to delete variable ${varId}: ${error.message}`);
+                        console.error('❌ Delete error:', error);
+                    }
+                }
+
+                figma.ui.postMessage({
+                    type: 'delete-complete',
+                    success: true,
+                    deletedCount: deletedIds.length,
+                    errors: errors
+                });
+            } catch (error) {
+                figma.notify('Failed to delete variables: ' + error.message);
+            }
+            break;
     }
 };

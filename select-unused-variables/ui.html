@@ -92,34 +92,42 @@
     }
     
     .collections-list {
-      margin-bottom: 0;
+      margin-bottom: 16px;
       background: #FAFAFA;
       border-radius: 8px;
-      padding: 4px;
-      position: relative;
-      z-index: 1;
+      padding: 8px;
+      max-height: 400px;
+      overflow-y: auto;
     }
     
     .collection-item {
       display: flex;
       align-items: center;
-      margin-bottom: 0;
-      padding: 4px 12px;
+      padding: 8px 12px;
+      margin: 4px 0;
       border-radius: 6px;
+      background: white;
       transition: background-color 0.2s ease;
     }
     
     .collection-item:hover {
-      background-color: #F0F0F0;
+      background-color: #F5F5F5;
     }
     
-    /* Custom checkbox styles */
-    .collection-item input[type="checkbox"],
-    .select-all input[type="checkbox"] {
-      margin-right: 10px;
+    .collection-item label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+      width: 100%;
+    }
+    
+    .collection-item input[type="checkbox"] {
+      margin-right: 12px;
       width: 16px;
       height: 16px;
-      border: 2px solid rgb(17, 19, 20);
+      border: 2px solid #333;
       border-radius: 4px;
       cursor: pointer;
       position: relative;
@@ -128,40 +136,57 @@
       outline: none;
       transition: all 0.2s ease;
     }
-
-    .collection-item input[type="checkbox"]:checked,
-    .select-all input[type="checkbox"]:checked {
-      background-color: rgb(17, 19, 20);
+    
+    .collection-item input[type="checkbox"]:checked {
+      background-color: #18A0FB;
+      border-color: #18A0FB;
     }
-
-    .collection-item input[type="checkbox"]:checked::after,
-    .select-all input[type="checkbox"]:checked::after {
+    
+    .collection-item input[type="checkbox"]:checked::after {
       content: '';
       position: absolute;
-      left: 3px;
-      top: 0px;
+      left: 4px;
+      top: 1px;
       width: 4px;
-      height: 7px;
+      height: 8px;
       border: solid white;
       border-width: 0 2px 2px 0;
       transform: rotate(45deg);
     }
-
-    .collection-item input[type="checkbox"]:hover,
-    .select-all input[type="checkbox"]:hover {
-      border-color: rgb(28, 31, 32);
-    }
-
-    .collection-item input[type="checkbox"]:checked:hover,
-    .select-all input[type="checkbox"]:checked:hover {
-      background-color: rgb(28, 31, 32);
+    
+    .select-all {
+      padding: 12px;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #EAEAEA;
+      display: flex;
+      align-items: center;
+      background: white;
+      border-radius: 6px;
     }
     
-    .collection-item label {
+    .select-all label {
+      font-weight: 500;
       cursor: pointer;
-      font-size: 14px;
       user-select: none;
-      letter-spacing: -0.006em;
+    }
+    
+    .variable-count {
+      font-size: 12px;
+      color: #666;
+      background: #F5F5F5;
+      padding: 2px 8px;
+      border-radius: 12px;
+      margin-left: 8px;
+    }
+    
+    .empty-message {
+      padding: 24px;
+      text-align: center;
+      color: #666;
+      font-style: italic;
+      background: white;
+      border-radius: 6px;
+      margin: 8px 0;
     }
     
     .progress {
@@ -328,24 +353,6 @@
       box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
     
-    .select-all {
-      padding: 12px;
-      border-bottom: 1px solid #EAEAEA;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      background: #fff;
-      border-radius: 6px;
-    }
-    
-    .select-all label {
-      font-weight: 500;
-      font-size: 14px;
-      cursor: pointer;
-      user-select: none;
-      letter-spacing: -0.006em;
-    }
-
     #start-search,
     #print-button {
       width: 100%;
@@ -393,6 +400,231 @@
       max-width: 472px;
       margin: 0 auto;
       display: block;
+    }
+
+    .status-panel {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+      display: none;
+      font-size: 13px;
+      transition: all 0.3s ease;
+    }
+
+    .status-panel.active {
+      display: block;
+      animation: slideUp 0.3s ease;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .status-item {
+      text-align: center;
+      padding: 8px;
+      background: #F5F5F5;
+      border-radius: 8px;
+    }
+
+    .status-label {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+
+    .status-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .status-value.warning {
+      color: #F6A609;
+    }
+
+    .status-value.error {
+      color: #F14722;
+    }
+
+    .status-value.success {
+      color: #1BC47D;
+    }
+
+    .status-progress {
+      height: 4px;
+      background: #E5E5E5;
+      border-radius: 2px;
+      margin-top: 12px;
+      overflow: hidden;
+    }
+
+    .status-bar {
+      height: 100%;
+      background: #18A0FB;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateY(20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .results-header {
+      padding: 16px;
+      border-bottom: 1px solid #EAEAEA;
+      margin-bottom: 16px;
+    }
+
+    .results-header h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .results-count {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+      display: block;
+    }
+
+    .variable-list {
+      max-height: 400px;
+      overflow-y: auto;
+      padding: 0 16px;
+    }
+
+    .variable-item {
+      display: flex;
+      align-items: flex-start;
+      padding: 12px;
+      margin: 8px 0;
+      background: white;
+      border-radius: 6px;
+      transition: background-color 0.2s ease;
+    }
+
+    .variable-item:hover {
+      background-color: #F5F5F5;
+    }
+
+    .variable-info {
+      margin-left: 12px;
+      flex: 1;
+    }
+
+    .variable-name {
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .variable-details {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 12px;
+      color: #666;
+    }
+
+    .collection-name {
+      background: #E8F5FF;
+      color: #0066CC;
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+
+    .variable-type {
+      background: #F0F0F0;
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+
+    .last-checked {
+      color: #999;
+    }
+
+    .actions {
+      padding: 16px;
+      border-top: 1px solid #EAEAEA;
+      margin-top: 16px;
+      text-align: right;
+    }
+
+    .empty-results {
+      text-align: center;
+      padding: 32px 16px;
+      color: #666;
+    }
+
+    .success-message {
+      text-align: center;
+      padding: 32px 16px;
+    }
+
+    .success-message h2 {
+      color: #28A745;
+      margin-bottom: 16px;
+    }
+
+    .error-summary {
+      margin-top: 16px;
+      padding: 16px;
+      background: #FFF3F3;
+      border-radius: 6px;
+      text-align: left;
+    }
+
+    .error-summary ul {
+      margin: 8px 0 0 0;
+      padding-left: 20px;
+      color: #DC3545;
+    }
+
+    .button {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid #EAEAEA;
+      background: white;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+
+    .button:hover {
+      background: #F5F5F5;
+    }
+
+    .button--primary {
+      background: #18A0FB;
+      color: white;
+      border: none;
+    }
+
+    .button--primary:hover {
+      background: #0D8DE3;
+    }
+
+    .button.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
   </style>
 </head>
@@ -458,18 +690,59 @@
     </div>
   </div>
 
+  <div class="status-panel" id="statusPanel">
+    <div class="status-grid">
+      <div class="status-item">
+        <div class="status-label">Variáveis Analisadas</div>
+        <div class="status-value" id="analyzedCount">0</div>
+      </div>
+      <div class="status-item">
+        <div class="status-label">Não Utilizadas</div>
+        <div class="status-value warning" id="unusedCount">0</div>
+      </div>
+      <div class="status-item">
+        <div class="status-label">Erros de Remoção</div>
+        <div class="status-value error" id="errorCount">0</div>
+      </div>
+    </div>
+    <div class="status-progress">
+      <div class="status-bar" id="progressBar"></div>
+    </div>
+  </div>
+
   <script>
-    const step1 = document.getElementById('step1');
-    const step2 = document.getElementById('step2');
-    const step3 = document.getElementById('step3');
-    const startButton = document.getElementById('start-search');
-    const step1Progress = document.getElementById('step1-progress');
-    const collections = document.getElementById('collections');
-    const selectAllCollectionsCheckbox = document.getElementById('select-all-collections');
-    const unusedVarsContainer = document.getElementById('unusedVarsContainer');
+    let step1 = document.getElementById('step1');
+    let step2 = document.getElementById('step2');
+    let step3 = document.getElementById('step3');
+    let startButton = document.getElementById('start-search');
+    let step1Progress = document.getElementById('step1-progress');
+    let collections = document.getElementById('collections');
+    let selectAllCollectionsCheckbox = document.getElementById('select-all-collections');
+    let unusedVarsContainer = document.getElementById('unusedVarsContainer');
+    let checkboxes = [];
+
+    // Função para atualizar o estado do botão de início
+    function updateStartButton() {
+      const anyChecked = checkboxes.some(cb => cb.checked);
+      if (startButton) {
+        startButton.disabled = !anyChecked;
+      }
+    }
 
     // Initialize
     window.onload = () => {
+      console.log('🚀 UI inicializada, solicitando collections...');
+      
+      // Configurar handlers dos botões
+      document.getElementById('back-to-step1')?.addEventListener('click', () => {
+        showStep('step1');
+      });
+      
+      document.getElementById('back-to-step2')?.addEventListener('click', () => {
+        showStep('step2');
+      });
+      
+      // Solicitar collections ao plugin
       parent.postMessage({ pluginMessage: { type: 'init' } }, '*');
     };
 
@@ -481,110 +754,115 @@
 
     // Função para mostrar um step específico
     function showStep(stepId) {
-      [step1, step2, step3].forEach(step => {
-        step.classList.remove('active');
+      document.querySelectorAll('.step').forEach(step => {
+        step.style.display = 'none';
       });
-      document.getElementById(stepId).classList.add('active');
+      document.getElementById(stepId).style.display = 'block';
     }
 
-    // Handle messages from the plugin
-    window.onmessage = (event) => {
-      if (!event.data.pluginMessage) return;
+    // Função para renderizar collections
+    function renderCollections(collections) {
+      console.log('🎨 Renderizando collections:', collections);
       
-      const msg = event.data.pluginMessage;
-      console.log('📨 Received message from plugin:', msg);
-
-      switch (msg.type) {
-        case 'collections':
-          collections.innerHTML = ''; // Clear existing content
-          const selectAllDiv = document.createElement('div');
-          selectAllDiv.className = 'select-all';
-          selectAllDiv.innerHTML = `
-            <input type="checkbox" id="select-all-collections" checked>
-            <label for="select-all-collections">All</label>
-          `;
-          collections.appendChild(selectAllDiv);
-          
-          if (!msg.collections || msg.collections.length === 0) {
-            collections.innerHTML += '<p>No variable collections found in this file</p>';
-            startButton.disabled = true;
-            return;
-          }
-
-          msg.collections.forEach(collection => {
-            const div = document.createElement('div');
-            div.className = 'collection-item';
-            
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.id = collection.id;
-            checkbox.value = collection.id;
-            checkbox.checked = true;
-            
-            const label = document.createElement('label');
-            label.htmlFor = collection.id;
-            label.textContent = collection.name;
-            
-            div.appendChild(checkbox);
-            div.appendChild(label);
-            collections.appendChild(div);
-          });
-
-          startButton.disabled = false;
-          break;
-
-        case 'complete':
-          step1Progress.style.display = 'none';
-          
-          if (msg.variables && msg.variables.length > 0) {
-            unusedVarsContainer.innerHTML = `
-              <div class="results-summary">
-                Found <span class="results-count">${msg.variables.length}</span> unused variables
-              </div>
-              <div class="variable-list">
-                ${msg.variables.map(v => `
-                  <div class="variable-item">
-                    <label class="checkbox-container">
-                      <input type="checkbox" data-id="${v.id}" onchange="toggleVariable('${v.id}')">
-                      <span class="checkmark"></span>
-                    </label>
-                    <div class="variable-info">
-                      <span class="variable-name">${v.name}</span>
-                      <span class="collection-name">${v.collection}</span>
-                    </div>
-                  </div>
-                `).join('')}
-              </div>
-            `;
-            showStep('step2');
-          } else {
-            unusedVarsContainer.innerHTML = `
-              <div class="results-summary">
-                No unused variables found
-              </div>
-            `;
-          }
-          resetState();
-          break;
-
-        case 'error':
-          console.error('❌ Error received:', msg.message);
-          alert(msg.message);
-          break;
-
-        case 'delete-result':
-          if (msg.success) {
-            showStep('step3');
-          } else {
-            // Se houver erro, voltar para o step2 e mostrar mensagem
-            showStep('step2');
-            if (msg.error) {
-              alert(msg.error);
-            }
-          }
-          break;
+      const collectionsContainer = document.querySelector('.collections-list');
+      if (!collectionsContainer) {
+        console.error('❌ Container de collections não encontrado');
+        return;
       }
-    };
+      
+      collectionsContainer.innerHTML = '';
+      checkboxes = []; // Limpar array de checkboxes
+
+      if (!collections || !Array.isArray(collections) || collections.length === 0) {
+        console.log('ℹ️ Nenhuma collection para renderizar');
+        collectionsContainer.innerHTML = `
+          <div class="empty-message">
+            Nenhuma coleção de variáveis encontrada.
+            Crie uma coleção de variáveis primeiro.
+          </div>
+        `;
+        return;
+      }
+
+      console.log(`📊 Renderizando ${collections.length} collections`);
+
+      // Add "Select All" checkbox
+      const selectAllDiv = document.createElement('div');
+      selectAllDiv.className = 'select-all';
+      
+      const selectAllLabel = document.createElement('label');
+      const selectAllCheckbox = document.createElement('input');
+      selectAllCheckbox.type = 'checkbox';
+      selectAllCheckbox.id = 'select-all';
+      
+      selectAllLabel.appendChild(selectAllCheckbox);
+      selectAllLabel.appendChild(document.createTextNode('Selecionar todas as coleções'));
+      
+      const totalCount = document.createElement('span');
+      totalCount.className = 'variable-count';
+      totalCount.textContent = `${collections.length} ${collections.length === 1 ? 'coleção' : 'coleções'}`;
+      selectAllLabel.appendChild(totalCount);
+      
+      selectAllDiv.appendChild(selectAllLabel);
+      collectionsContainer.appendChild(selectAllDiv);
+
+      // Add individual collection checkboxes
+      collections.forEach(collection => {
+        if (!collection || !collection.id) {
+          console.warn('⚠️ Collection inválida:', collection);
+          return;
+        }
+
+        console.log(`📝 Renderizando collection: ${collection.name} (${collection.id})`);
+        
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'collection-item';
+        
+        const label = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = collection.id;
+        checkbox.dataset.name = collection.name;
+        
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = collection.name || '[Sem nome]';
+        
+        const countSpan = document.createElement('span');
+        countSpan.className = 'variable-count';
+        const varCount = Array.isArray(collection.variableIds) ? collection.variableIds.length : 0;
+        countSpan.textContent = `${varCount} ${varCount === 1 ? 'variável' : 'variáveis'}`;
+        
+        label.appendChild(checkbox);
+        label.appendChild(nameSpan);
+        label.appendChild(countSpan);
+        itemDiv.appendChild(label);
+        collectionsContainer.appendChild(itemDiv);
+
+        // Add to checkbox array for "Select All" functionality
+        checkboxes.push(checkbox);
+      });
+
+      console.log(`✅ Renderizadas ${checkboxes.length} collections`);
+
+      // Handle "Select All" checkbox
+      selectAllCheckbox.addEventListener('change', (e) => {
+        const isChecked = e.target.checked;
+        checkboxes.forEach(checkbox => {
+          checkbox.checked = isChecked;
+        });
+        updateStartButton();
+      });
+
+      // Handle individual checkbox changes
+      checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+          selectAllCheckbox.checked = checkboxes.every(cb => cb.checked);
+          updateStartButton();
+        });
+      });
+
+      updateStartButton();
+    }
 
     // Send selected collections to the plugin
     startButton.onclick = () => {
@@ -617,16 +895,18 @@
         checkboxes.forEach(checkbox => {
           checkbox.checked = e.target.checked;
         });
-        startButton.disabled = !e.target.checked && checkboxes.length > 0;
+        updateStartButton();
       } else if (e.target.closest('.collection-item')) {
         // Atualizar o estado do "select all" baseado nas collections
         const allCheckboxes = Array.from(document.querySelectorAll('.collection-item input[type="checkbox"]'));
         const selectAllCheckbox = document.getElementById('select-all-collections');
-        selectAllCheckbox.checked = allCheckboxes.every(cb => cb.checked);
-        selectAllCheckbox.indeterminate = !selectAllCheckbox.checked && allCheckboxes.some(cb => cb.checked);
+        if (selectAllCheckbox) {
+          selectAllCheckbox.checked = allCheckboxes.every(cb => cb.checked);
+          selectAllCheckbox.indeterminate = !selectAllCheckbox.checked && allCheckboxes.some(cb => cb.checked);
+        }
         
         // Habilitar/desabilitar o botão de início baseado se há alguma seleção
-        startButton.disabled = !allCheckboxes.some(cb => cb.checked);
+        updateStartButton();
       }
     });
 
@@ -668,21 +948,41 @@
     async function deleteSelected() {
       if (selectedVariables.size === 0) return;
       
-      const variableIds = Array.from(selectedVariables);
-      console.log('🗑️ Sending variables to delete:', variableIds);
+      const variableElements = document.querySelectorAll('#unusedVarsContainer input[type="checkbox"]:checked');
+      const variables = Array.from(variableElements).map(el => ({
+        id: el.dataset.id,
+        name: el.dataset.name,
+        description: "",
+        value: {}
+      }));
+      
+      console.log('🗑️ Enviando variáveis para exclusão:', variables);
+      
+      const message = `Tem certeza que deseja excluir ${variables.length} ${variables.length === 1 ? 'variável' : 'variáveis'}?`;
+      if (!confirm(message)) {
+        return;
+      }
       
       // Mostrar loading state
       const deleteBtn = document.getElementById('deleteSelectedBtn');
       const originalText = deleteBtn.textContent;
-      deleteBtn.textContent = 'Deleting...';
+      deleteBtn.textContent = 'Excluindo...';
       deleteBtn.disabled = true;
       
-      parent.postMessage({ 
-        pluginMessage: { 
-          type: 'delete-variables', 
-          variableIds 
-        }
-      }, '*');
+      try {
+        // Enviar mensagem para o plugin
+        parent.postMessage({ 
+          pluginMessage: { 
+            type: 'delete-variables',
+            variables: variables
+          }
+        }, '*');
+      } catch (error) {
+        console.error('❌ Erro ao enviar mensagem:', error);
+        deleteBtn.textContent = originalText;
+        deleteBtn.disabled = false;
+        alert('Erro ao tentar excluir as variáveis');
+      }
     }
 
     function closePlugin() {
@@ -693,6 +993,202 @@
         }
       }, '*');
     }
+
+    let statusState = {
+      analyzed: 0,
+      unused: 0,
+      errors: 0,
+      total: 0
+    };
+
+    function updateStatusPanel() {
+      const panel = document.getElementById('statusPanel');
+      const analyzedCount = document.getElementById('analyzedCount');
+      const unusedCount = document.getElementById('unusedCount');
+      const errorCount = document.getElementById('errorCount');
+      const progressBar = document.getElementById('progressBar');
+
+      // Atualizar contadores
+      analyzedCount.textContent = statusState.analyzed;
+      unusedCount.textContent = statusState.unused;
+      errorCount.textContent = statusState.errors;
+
+      // Atualizar barra de progresso
+      if (statusState.total > 0) {
+        const progress = (statusState.analyzed / statusState.total) * 100;
+        progressBar.style.width = `${progress}%`;
+      }
+
+      // Mostrar painel se houver atividade
+      if (statusState.analyzed > 0 || statusState.unused > 0 || statusState.errors > 0) {
+        panel.classList.add('active');
+      }
+    }
+
+    // Ouvir mensagens do plugin
+    window.onmessage = (event) => {
+      if (!event.data || !event.data.pluginMessage) {
+        console.warn('⚠️ Mensagem inválida recebida:', event);
+        return;
+      }
+
+      const msg = event.data.pluginMessage;
+      console.log('📨 Mensagem recebida:', msg);
+
+      switch (msg.type) {
+        case 'collections':
+          console.log('📚 Collections recebidas:', msg.collections);
+          
+          if (!msg.collections) {
+            console.warn('⚠️ Nenhuma collection recebida');
+            msg.collections = [];
+          }
+          
+          if (!Array.isArray(msg.collections)) {
+            console.warn('⚠️ Collections não é um array:', msg.collections);
+            msg.collections = [];
+          }
+          
+          renderCollections(msg.collections);
+          break;
+
+        case 'progress':
+          console.log('🔄 Progresso:', msg.message);
+          // Atualizar o status panel com a mensagem de progresso
+          const statusPanel = document.getElementById('statusPanel');
+          if (statusPanel) {
+            statusPanel.classList.add('active');
+          }
+          break;
+
+        case 'complete':
+          console.log('✅ Busca completa:', msg);
+          step1Progress.style.display = 'none';
+          
+          if (!msg.variables) {
+            console.warn('⚠️ Nenhuma variável recebida');
+            msg.variables = [];
+          }
+          
+          if (!Array.isArray(msg.variables)) {
+            console.warn('⚠️ Variáveis não é um array:', msg.variables);
+            msg.variables = [];
+          }
+          
+          // Atualizar estatísticas
+          if (msg.stats) {
+            statusState.analyzed = msg.stats.totalVariables || 0;
+            statusState.unused = msg.variables.length;
+            updateStatusPanel();
+          }
+          
+          if (msg.variables && msg.variables.length > 0) {
+            unusedVarsContainer.innerHTML = `
+              <div class="results-header">
+                <h2>Variáveis não utilizadas</h2>
+                <span class="results-count">${msg.variables.length} ${msg.variables.length === 1 ? 'variável encontrada' : 'variáveis encontradas'}</span>
+              </div>
+              <div class="variable-list">
+                ${msg.variables.map(v => `
+                  <div class="variable-item">
+                    <label class="checkbox-container">
+                      <input type="checkbox" 
+                             data-id="${v.id}" 
+                             data-collection="${v.collection}"
+                             data-name="${v.name}"
+                             onchange="toggleVariable('${v.id}')"
+                             checked>
+                      <span class="checkmark"></span>
+                    </label>
+                    <div class="variable-info">
+                      <div class="variable-name">${v.name}</div>
+                      <div class="variable-details">
+                        <span class="collection-name">${v.collection}</span>
+                      </div>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+              <div class="actions">
+                <button onclick="toggleSelectAll()" class="button secondary">Selecionar Todas</button>
+                <button onclick="deleteSelected()" id="deleteSelectedBtn" class="button button--primary">
+                  Excluir variáveis selecionadas
+                </button>
+              </div>
+            `;
+
+            // Inicializar selectedVariables com todas as variáveis
+            selectedVariables = new Set(msg.variables.map(v => v.id));
+            updateDeleteButton();
+            showStep('step2');
+          } else {
+            unusedVarsContainer.innerHTML = `
+              <div class="results-header">
+                <h2>Nenhuma variável não utilizada encontrada</h2>
+              </div>
+              <div class="empty-results">
+                <p>Todas as variáveis nas coleções selecionadas estão sendo utilizadas.</p>
+                <button onclick="showStep('step1')" class="button">
+                  Voltar para seleção de coleções
+                </button>
+              </div>
+            `;
+            showStep('step2');
+          }
+          break;
+
+        case 'delete-result':
+          console.log('🗑️ Resultado da exclusão:', msg);
+          const deleteBtn = document.getElementById('deleteSelectedBtn');
+          
+          if (msg.success) {
+            // Atualizar estatísticas
+            statusState.errors = msg.stats?.errors || 0;
+            updateStatusPanel();
+            
+            // Mostrar mensagem de sucesso
+            document.getElementById('step3').innerHTML = `
+              <div class="header">
+                <h3>Sucesso!</h3>
+              </div>
+              <div class="content">
+                <div class="success-message">
+                  <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                    <circle cx="16" cy="16" r="16" fill="#1BC47D"/>
+                    <path d="M22.6 12.4L14.6 20.4L9.40002 15.2" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <h2>Variáveis excluídas com sucesso!</h2>
+                  <p>Foram excluídas ${msg.stats.success} ${msg.stats.success === 1 ? 'variável' : 'variáveis'}.</p>
+                  ${msg.stats.errors > 0 ? `
+                    <div class="error-summary">
+                      <p>Alguns erros ocorreram durante a exclusão:</p>
+                      <p>${msg.stats.errors} ${msg.stats.errors === 1 ? 'erro' : 'erros'} encontrados</p>
+                    </div>
+                  ` : ''}
+                </div>
+                <button onclick="showStep('step1')" class="button button--primary">
+                  Voltar para o início
+                </button>
+              </div>
+            `;
+            showStep('step3');
+          } else {
+            // Restaurar botão e mostrar erro
+            if (deleteBtn) {
+              deleteBtn.textContent = 'Excluir variáveis selecionadas';
+              deleteBtn.disabled = false;
+            }
+            alert('Erro ao excluir variáveis: ' + (msg.error || 'Erro desconhecido'));
+          }
+          break;
+
+        case 'error':
+          console.error('❌ Erro:', msg.message);
+          alert(msg.message);
+          step1Progress.style.display = 'none';
+          break;
+      }
+    };
   </script>
 </body>
 </html>
