@@ -666,14 +666,26 @@ figma.ui.onmessage = async (msg) => {
                 }
 
                 figma.ui.postMessage({
-                    type: 'delete-complete',
+                    type: 'delete-result',
                     success: true,
-                    deletedCount: deletedIds.length,
+                    stats: {
+                        success: deletedIds.length,
+                        errors: errors.length
+                    },
                     errors: errors
                 });
             } catch (error) {
+                figma.ui.postMessage({
+                    type: 'delete-result',
+                    success: false,
+                    error: error.message
+                });
                 figma.notify('Failed to delete variables: ' + error.message);
             }
+            break;
+
+        case 'close':
+            figma.closePlugin();
             break;
     }
 };

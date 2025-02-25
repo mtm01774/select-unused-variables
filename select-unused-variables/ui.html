@@ -36,11 +36,16 @@
     
     .step {
       display: none;
-      animation: fadeIn 0.3s ease;
     }
     
     .step.active {
-      display: block;
+      display: block !important;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
     
     .header {
@@ -219,11 +224,6 @@
       z-index: 1;
     }
     
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    
     .spinner-container {
       width: 100%;
       display: flex;
@@ -328,15 +328,41 @@
       align-items: center;
       text-align: center;
       margin: 32px 0;
+      padding: 40px 20px;
+      height: calc(100vh - 200px);
+      justify-content: center;
     }
-
+    
     .success-message svg {
-      margin-bottom: 16px;
+      margin-bottom: 24px;
+      width: 64px;
+      height: 64px;
     }
-
+    
+    .success-message h2 {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 8px 0;
+    }
+    
     .success-message p {
-      color: #333;
-      margin: 0;
+      color: #666;
+      margin: 8px 0 24px 0;
+    }
+    
+    .error-summary {
+      background-color: #FFF4F4;
+      border: 1px solid #FFCFCF;
+      border-radius: 6px;
+      padding: 12px;
+      margin-top: 16px;
+      width: 100%;
+      text-align: left;
+    }
+    
+    .error-summary p {
+      margin: 4px 0;
+      color: #D92D20;
     }
     
     button {
@@ -507,30 +533,6 @@
       text-align: center;
       padding: 32px 16px;
       color: #666;
-    }
-
-    .success-message {
-      text-align: center;
-      padding: 32px 16px;
-    }
-
-    .success-message h2 {
-      color: #28A745;
-      margin-bottom: 16px;
-    }
-
-    .error-summary {
-      margin-top: 16px;
-      padding: 16px;
-      background: #FFF3F3;
-      border-radius: 6px;
-      text-align: left;
-    }
-
-    .error-summary ul {
-      margin: 8px 0 0 0;
-      padding-left: 20px;
-      color: #DC3545;
     }
 
     .button {
@@ -716,18 +718,22 @@
 
     <!-- Step 3: Success Message -->
     <div id="step3" class="step">
-      <div class="header">
-        <h3>Success!</h3>
-      </div>
-      <div class="content">
-        <div class="success-message">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <circle cx="16" cy="16" r="16" fill="#1BC47D"/>
-            <path d="M22.6 12.4L14.6 20.4L9.40002 15.2" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-          <p>Selected variables have been deleted successfully!</p>
+      <div class="content-wrapper">
+        <div class="header">
+          <h3>3. Success</h3>
         </div>
-        <button class="button primary" onclick="closePlugin()">Done</button>
+        <div class="content">
+          <div class="success-message">
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+              <circle cx="32" cy="32" r="32" fill="#1BC47D"/>
+              <path d="M45.2 24.8L29.2 40.8L18.8 30.4" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <p style="font-size: 18px; font-weight: 500; margin-top: 24px; margin-bottom: 24px; color: #333; max-width: 280px; line-height: 1.4;">All unused variables were deleted from your project</p>
+          </div>
+        </div>
+      </div>
+      <div class="footer-actions">
+        <button onclick="checkAgain()" style="background-color: #000; color: #fff; border-radius: 999px; width: 100%;">Check again</button>
       </div>
     </div>
   </div>
@@ -781,10 +787,40 @@
 
     // Função para mostrar um step específico
     function showStep(stepId) {
-      document.querySelectorAll('.step').forEach(step => {
-        step.style.display = 'none';
+      console.log(`🔄 Mudando para o step: ${stepId}`);
+      
+      // Verificar se o elemento existe
+      const targetStep = document.getElementById(stepId);
+      if (!targetStep) {
+        console.error(`❌ Step ${stepId} não encontrado no DOM`);
+        return;
+      }
+      
+      // Verificar todos os steps disponíveis
+      const allSteps = document.querySelectorAll('.step');
+      console.log(`📊 Total de steps encontrados: ${allSteps.length}`);
+      
+      // Esconder todos os steps
+      allSteps.forEach(step => {
+        step.classList.remove('active');
+        console.log(`🔄 Removendo classe 'active' de ${step.id}`);
       });
-      document.getElementById(stepId).style.display = 'block';
+      
+      // Mostrar o step desejado
+      targetStep.classList.add('active');
+      console.log(`✅ Step ${stepId} ativado com sucesso`);
+      
+      // Verificar se o step está realmente visível
+      setTimeout(() => {
+        const isVisible = window.getComputedStyle(targetStep).display !== 'none';
+        console.log(`🔍 Step ${stepId} visibilidade: ${isVisible ? 'visível' : 'oculto'}`);
+        
+        if (!isVisible) {
+          console.warn(`⚠️ Step ${stepId} não está visível mesmo após adicionar a classe 'active'`);
+          // Forçar visibilidade como fallback
+          targetStep.style.display = 'block';
+        }
+      }, 50);
     }
 
     // Função para renderizar collections
@@ -934,7 +970,7 @@
             collections: selectedCollections
           }
         }, '*');
-      }, 0);
+      }, 100);
     };
 
     // Handle select all checkbox for collections
@@ -993,7 +1029,7 @@
       deleteBtn.disabled = selectedVariables.size === 0;
     }
 
-    async function deleteSelected() {
+    function deleteSelected() {
       if (selectedVariables.size === 0) return;
       
       const variableElements = document.querySelectorAll('#unusedVarsContainer input[type="checkbox"]:checked');
@@ -1025,11 +1061,13 @@
             variables: variables
           }
         }, '*');
+        
+        console.log('✅ Mensagem enviada para o plugin');
       } catch (error) {
         console.error('❌ Erro ao enviar mensagem:', error);
         deleteBtn.textContent = originalText;
         deleteBtn.disabled = false;
-        alert('Erro ao tentar excluir as variáveis');
+        alert('Erro ao tentar excluir as variáveis: ' + error.message);
       }
     }
 
@@ -1040,6 +1078,16 @@
           type: 'close'
         }
       }, '*');
+    }
+
+    function checkAgain() {
+      console.log('🔄 Verificando novamente...');
+      // Resetar o estado da UI
+      resetState();
+      // Voltar para o step 1
+      showStep('step1');
+      // Solicitar collections novamente
+      parent.postMessage({ pluginMessage: { type: 'init' } }, '*');
     }
 
     // Ouvir mensagens do plugin
@@ -1167,39 +1215,19 @@
           const deleteBtn = document.getElementById('deleteSelectedBtn');
           
           if (msg.success) {
-            // Mostrar mensagem de sucesso
-            document.getElementById('step3').innerHTML = `
-              <div class="header">
-                <h3>Sucesso!</h3>
-              </div>
-              <div class="content">
-                <div class="success-message">
-                  <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                    <circle cx="16" cy="16" r="16" fill="#1BC47D"/>
-                    <path d="M22.6 12.4L14.6 20.4L9.40002 15.2" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                  <h2>Variáveis excluídas com sucesso!</h2>
-                  <p>Foram excluídas ${msg.stats.success} ${msg.stats.success === 1 ? 'variável' : 'variáveis'}.</p>
-                  ${msg.stats.errors > 0 ? `
-                    <div class="error-summary">
-                      <p>Alguns erros ocorreram durante a exclusão:</p>
-                      <p>${msg.stats.errors} ${msg.stats.errors === 1 ? 'erro' : 'erros'} encontrados</p>
-                    </div>
-                  ` : ''}
-                </div>
-                <button onclick="showStep('step1')" class="button button--primary">
-                  Voltar para o início
-                </button>
-              </div>
-            `;
+            console.log('✅ Deleção bem-sucedida, preparando tela de sucesso');
+            // Não precisamos mais recriar o HTML do step 3, pois ele já está definido corretamente
+            // Apenas mostrar o step 3
+            console.log('🚀 Chamando showStep para exibir o passo 3');
             showStep('step3');
           } else {
+            console.error('❌ Erro na deleção:', msg.error);
             // Restaurar botão e mostrar erro
             if (deleteBtn) {
-              deleteBtn.textContent = 'Excluir variáveis selecionadas';
+              deleteBtn.textContent = 'Delete unused variables';
               deleteBtn.disabled = false;
             }
-            alert('Erro ao excluir variáveis: ' + (msg.error || 'Erro desconhecido'));
+            alert('Error deleting variables: ' + (msg.error || 'Unknown error'));
           }
           break;
 
