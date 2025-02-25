@@ -657,6 +657,18 @@
         <div class="header">
           <h3>1. Select collections</h3>
         </div>
+        
+        <!-- Stats summary for Step 1 -->
+        <div class="stats-summary" style="background-color: #F8F9FA; padding: 16px; border-radius: 8px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <span style="font-weight: 500;">Unused variables found:</span>
+            <span id="step1-unused-count" style="font-weight: bold; font-size: 18px; margin-left: 8px; color: #1BC47D;">0</span>
+          </div>
+          <div id="auto-analyze-spinner" style="display: none;">
+            <div class="spinner" style="width: 20px; height: 20px;"></div>
+          </div>
+        </div>
+        
         <div id="collections" class="collections-list">
           <div class="select-all">
             <input type="checkbox" id="select-all-collections" checked>
@@ -667,6 +679,7 @@
           <div class="spinner-container">
             <div class="spinner"></div>
           </div>
+          <p>Analyzing variables...</p>
         </div>
       </div>
       <div class="footer-actions">
@@ -761,7 +774,7 @@
     window.onload = () => {
       console.log('🚀 UI inicializada, solicitando collections...');
       
-      // Habilitar o botão de início por padrão, já que as collections serão selecionadas por padrão
+      // Habilitar o botão de início por padrão
       if (startButton) {
         startButton.disabled = false;
       }
@@ -914,7 +927,7 @@
         
         const countSpan = document.createElement('span');
         countSpan.className = 'variable-count';
-        const varCount = Array.isArray(collection.variableIds) ? collection.variableIds.length : 0;
+        const varCount = collection.variableIds ? collection.variableIds.length : 0;
         countSpan.textContent = `${varCount} ${varCount === 1 ? 'variable' : 'variables'}`;
         
         label.appendChild(checkbox);
@@ -947,6 +960,38 @@
       });
 
       updateStartButton();
+      
+      // Iniciar análise automática após renderizar collections
+      startAutoAnalysis();
+    }
+
+    // Nova função para iniciar a análise automática
+    function startAutoAnalysis() {
+      console.log('🔄 Iniciando análise automática...');
+      
+      // Mostrar o spinner de análise automática
+      document.getElementById('auto-analyze-spinner').style.display = 'block';
+      
+      // Obter todas as collections selecionadas
+      const selectedCollections = Array.from(
+        document.querySelectorAll('#collections input[type="checkbox"]:checked:not(#select-all-collections)')
+      ).map(input => input.value);
+      
+      if (selectedCollections.length === 0) {
+        console.warn('⚠️ Nenhuma collection selecionada para análise automática');
+        document.getElementById('auto-analyze-spinner').style.display = 'none';
+        return;
+      }
+      
+      console.log('📤 Enviando collections para análise automática:', selectedCollections);
+      
+      // Enviar mensagem para o plugin iniciar a análise em segundo plano
+      parent.postMessage({
+        pluginMessage: {
+          type: 'auto-analyze',
+          collections: selectedCollections
+        }
+      }, '*');
     }
 
     // Send selected collections to the plugin
@@ -954,6 +999,8 @@
       const selectedCollections = Array.from(
         document.querySelectorAll('#collections input[type="checkbox"]:checked:not(#select-all-collections)')
       ).map(input => input.value);
+      
+      console.log('📤 Enviando collections selecionadas para busca:', selectedCollections);
       
       if (selectedCollections.length === 0) {
         alert('Please select at least one collection');
@@ -963,12 +1010,16 @@
       startButton.disabled = true;
       step1Progress.style.display = 'block';
       
+      // Enviar mensagem para o plugin
       setTimeout(() => {
+        const message = {
+          type: 'start-search',
+          collections: selectedCollections
+        };
+        console.log('📤 Mensagem completa:', message);
+        
         parent.postMessage({
-          pluginMessage: {
-            type: 'start-search',
-            collections: selectedCollections
-          }
+          pluginMessage: message
         }, '*');
       }, 100);
     };
@@ -1135,17 +1186,25 @@
             msg.variables = [];
           }
           
+          console.log('📊 Variáveis não utilizadas recebidas:', msg.variables.length, msg.variables);
+          console.log('📊 Estatísticas recebidas:', msg.stats);
+          
           // Atualizar estatísticas
           if (msg.stats) {
+            console.log('📊 Atualizando contadores na UI com:', msg.stats);
             // Atualizar contadores no step 2
             document.getElementById('analyzedVarsCount').textContent = msg.stats.totalVariables || 0;
             document.getElementById('unusedVarsCount').textContent = msg.variables.length;
             document.getElementById('deletionErrorsCount').textContent = '0';
+          } else {
+            console.warn('⚠️ Sem estatísticas na resposta');
           }
           
           if (msg.variables && msg.variables.length > 0) {
             const unusedVarsContainer = document.getElementById('unusedVarsContainer');
             unusedVarsContainer.innerHTML = '';
+            
+            console.log('📊 Renderizando', msg.variables.length, 'variáveis não utilizadas na UI');
             
             // Adicionar cada variável não utilizada à lista
             msg.variables.forEach(v => {
@@ -1235,6 +1294,23 @@
           console.error('❌ Erro:', msg.message);
           alert(msg.message);
           step1Progress.style.display = 'none';
+          break;
+
+        case 'auto-analysis-result':
+          console.log('📊 Resultado da análise automática:', msg);
+          document.getElementById('auto-analyze-spinner').style.display = 'none';
+          
+          if (msg.variables && Array.isArray(msg.variables)) {
+            const unusedCount = msg.variables.length;
+            document.getElementById('step1-unused-count').textContent = unusedCount;
+            
+            // Se encontrou variáveis não utilizadas, destacar visualmente
+            if (unusedCount > 0) {
+              document.getElementById('step1-unused-count').style.color = '#D73A49';
+            } else {
+              document.getElementById('step1-unused-count').style.color = '#1BC47D';
+            }
+          }
           break;
       }
     };
