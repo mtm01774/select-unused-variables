@@ -13,7 +13,7 @@
     body {
       /* Using Inter with system font fallbacks */
       font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-      padding: 20px;
+      padding: 0;
       color: #333;
       background-color: #fff;
       min-height: 100vh;
@@ -25,7 +25,7 @@
 
     #app {
       width: 100%;
-      max-width: 472px; /* 512px - 40px (padding) */
+      max-width: 100%;
       margin: 0 auto;
     }
     
@@ -47,6 +47,7 @@
       display: flex;
       align-items: center;
       margin-bottom: 20px;
+      padding: 0 4px;
     }
     
     .back {
@@ -85,7 +86,7 @@
     
     h3 {
       margin: 0;
-      font-size: 16px;
+      font-size: 24px;
       font-weight: 600;
       color: #000;
       letter-spacing: -0.011em;
@@ -93,7 +94,7 @@
     
     .collections-list {
       margin-bottom: 16px;
-      background: #FAFAFA;
+      background: none;
       border-radius: 8px;
       padding: 8px;
       max-height: 400px;
@@ -103,8 +104,8 @@
     .collection-item {
       display: flex;
       align-items: center;
-      padding: 8px 12px;
-      margin: 4px 0;
+      padding: 4px 4px;
+      margin: 8px 0;
       border-radius: 6px;
       background: white;
       transition: background-color 0.2s ease;
@@ -117,66 +118,78 @@
     .collection-item label {
       display: flex;
       align-items: center;
-      gap: 8px;
       cursor: pointer;
       user-select: none;
       width: 100%;
     }
     
-    .collection-item input[type="checkbox"] {
-      margin-right: 12px;
-      width: 16px;
-      height: 16px;
-      border: 2px solid #333;
-      border-radius: 4px;
-      cursor: pointer;
-      position: relative;
+    .collection-item input[type="checkbox"],
+    #select-all-collections {
       appearance: none;
-      background: transparent;
-      outline: none;
-      transition: all 0.2s ease;
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border: 1px solid #E5E5E5;
+      border-radius: 4px;
+      background-color: transparent;
+      position: relative;
+      cursor: pointer;
+      margin-right: 12px;
+      flex-shrink: 0;
     }
     
-    .collection-item input[type="checkbox"]:checked {
-      background-color: #18A0FB;
-      border-color: #18A0FB;
+    .collection-item input[type="checkbox"]:checked,
+    #select-all-collections:checked {
+      background-color: #000;
+      border-color: #000;
     }
     
-    .collection-item input[type="checkbox"]:checked::after {
+    .collection-item input[type="checkbox"]:checked::after,
+    #select-all-collections:checked::after {
       content: '';
       position: absolute;
-      left: 4px;
-      top: 1px;
-      width: 4px;
-      height: 8px;
+      left: 6px;
+      top: 2px;
+      width: 5px;
+      height: 10px;
       border: solid white;
       border-width: 0 2px 2px 0;
       transform: rotate(45deg);
     }
     
     .select-all {
-      padding: 12px;
-      margin-bottom: 8px;
-      border-bottom: 1px solid #EAEAEA;
+      padding: 4px 4px;
+      margin-bottom: 16px;
       display: flex;
       align-items: center;
       background: white;
       border-radius: 6px;
     }
     
+    /* Divider between select all and collections */
+    .collections-divider {
+      height: 1px;
+      background-color: #EAEAEA;
+      margin: 8px 0 16px 0;
+      width: 100%;
+    }
+    
     .select-all label {
-      font-weight: 500;
+      font-weight: 400;
       cursor: pointer;
       user-select: none;
+      display: flex;
+      align-items: center;
+      width: 100%;
     }
     
     .variable-count {
       font-size: 12px;
       color: #666;
       background: #F5F5F5;
-      padding: 2px 8px;
-      border-radius: 12px;
-      margin-left: 8px;
+      padding: 4px 10px;
+      border-radius: 16px;
+      margin-left: auto;
     }
     
     .empty-message {
@@ -322,17 +335,18 @@
     
     button {
       display: inline-block;
-      padding: 10px 20px;
-      font-size: 14px;
+      padding: 14px 20px;
+      font-size: 16px;
       font-weight: 600;
       color: #fff;
-      background-color: rgb(17, 19, 20);
+      background-color: #000;
       border: none;
       border-radius: 999px;
       cursor: pointer;
       transition: all 0.2s ease;
       box-shadow: 0 1px 2px rgba(0,0,0,0.1);
       letter-spacing: -0.006em;
+      text-align: center;
     }
     
     button:disabled {
@@ -343,7 +357,7 @@
     }
     
     button:hover:not(:disabled) {
-      background-color: rgb(28, 31, 32);
+      background-color: #333;
       transform: translateY(-1px);
       box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
@@ -375,7 +389,7 @@
 
     /* Novo container para o conteúdo principal */
     .content-wrapper {
-      padding-bottom: 80px;
+      padding: 20px 20px 80px 20px;
       min-height: calc(100vh - 80px);
       display: flex;
       flex-direction: column;
@@ -397,7 +411,7 @@
     /* Ajuste para o botão dentro do footer */
     .footer-actions button {
       width: 100%;
-      max-width: 472px;
+      max-width: 100%;
       margin: 0 auto;
       display: block;
     }
@@ -634,12 +648,12 @@
     <div id="step1" class="step active">
       <div class="content-wrapper">
         <div class="header">
-          <h3>1. Select Collections</h3>
+          <h3>1. Select collections</h3>
         </div>
         <div id="collections" class="collections-list">
           <div class="select-all">
             <input type="checkbox" id="select-all-collections" checked>
-            <label for="select-all-collections">All</label>
+            <label for="select-all-collections">Select all collections</label>
           </div>
         </div>
         <div id="step1-progress" class="progress" style="display: none;">
@@ -649,7 +663,7 @@
         </div>
       </div>
       <div class="footer-actions">
-        <button id="start-search">Select unused variables</button>
+        <button id="start-search">Find unused variables</button>
       </div>
     </div>
 
@@ -796,21 +810,41 @@
       selectAllDiv.className = 'select-all';
       
       const selectAllLabel = document.createElement('label');
+      selectAllLabel.style.display = 'flex';
+      selectAllLabel.style.width = '100%';
+      selectAllLabel.style.justifyContent = 'space-between';
+      selectAllLabel.style.alignItems = 'center';
+      
+      const leftContainer = document.createElement('div');
+      leftContainer.style.display = 'flex';
+      leftContainer.style.alignItems = 'center';
+      
       const selectAllCheckbox = document.createElement('input');
       selectAllCheckbox.type = 'checkbox';
       selectAllCheckbox.id = 'select-all-collections';
       selectAllCheckbox.checked = true;
       
-      selectAllLabel.appendChild(selectAllCheckbox);
-      selectAllLabel.appendChild(document.createTextNode('Selecionar todas as coleções'));
+      leftContainer.appendChild(selectAllCheckbox);
+      
+      const textNode = document.createElement('span');
+      textNode.textContent = 'Select all collections';
+      textNode.style.marginLeft = '12px';
+      leftContainer.appendChild(textNode);
       
       const totalCount = document.createElement('span');
       totalCount.className = 'variable-count';
-      totalCount.textContent = `${collections.length} ${collections.length === 1 ? 'coleção' : 'coleções'}`;
+      totalCount.textContent = `${collections.length} ${collections.length === 1 ? 'collection' : 'collections'}`;
+      
+      selectAllLabel.appendChild(leftContainer);
       selectAllLabel.appendChild(totalCount);
       
       selectAllDiv.appendChild(selectAllLabel);
       collectionsContainer.appendChild(selectAllDiv);
+      
+      // Add divider between select all and collections
+      const divider = document.createElement('div');
+      divider.className = 'collections-divider';
+      collectionsContainer.appendChild(divider);
 
       // Add individual collection checkboxes
       collections.forEach(collection => {
@@ -837,7 +871,7 @@
         const countSpan = document.createElement('span');
         countSpan.className = 'variable-count';
         const varCount = Array.isArray(collection.variableIds) ? collection.variableIds.length : 0;
-        countSpan.textContent = `${varCount} ${varCount === 1 ? 'variável' : 'variáveis'}`;
+        countSpan.textContent = `${varCount} ${varCount === 1 ? 'variable' : 'variables'}`;
         
         label.appendChild(checkbox);
         label.appendChild(nameSpan);
