@@ -691,6 +691,9 @@
     <div id="step2" class="step">
       <div class="content-wrapper">
         <div class="header">
+          <div class="back" id="back-to-step1">
+            <div class="chevron-left"></div>
+          </div>
           <h3>2. Select unused variables</h3>
         </div>
         
@@ -702,7 +705,7 @@
           </div>
           <div class="stats-item">
             <div class="stats-value" id="deletionErrorsCount">0</div>
-            <div class="stats-label">Deletion erros</div>
+            <div class="stats-label">Deletion errors</div>
           </div>
           <div class="stats-item">
             <div class="stats-value" id="unusedVarsCount">0</div>
@@ -795,7 +798,12 @@
     // Reset UI state
     function resetState() {
       step1Progress.style.display = 'none';
-      startButton.disabled = false;
+      
+      // Verificar se há checkboxes selecionadas antes de habilitar o botão
+      const anyChecked = checkboxes.some(cb => cb.checked);
+      startButton.disabled = !anyChecked;
+      
+      console.log(`🔄 Estado resetado. Botão ${anyChecked ? 'habilitado' : 'desabilitado'} baseado em ${checkboxes.length} checkboxes`);
     }
 
     // Função para mostrar um step específico
@@ -805,7 +813,7 @@
       // Verificar se o elemento existe
       const targetStep = document.getElementById(stepId);
       if (!targetStep) {
-        console.error(`❌ Step ${stepId} não encontrado no DOM`);
+        console.error(`❌ Step ${stepId} not found in DOM`);
         return;
       }
       
@@ -823,13 +831,24 @@
       targetStep.classList.add('active');
       console.log(`✅ Step ${stepId} ativado com sucesso`);
       
+      // Se estiver voltando para o step 1, verificar se há checkboxes selecionadas
+      // e habilitar o botão de início se necessário
+      if (stepId === 'step1') {
+        console.log('🔄 Going back to step 1, checking checkboxes state');
+        const anyChecked = checkboxes.some(cb => cb.checked);
+        if (anyChecked && startButton) {
+          console.log('✅ Existem checkboxes selecionadas, habilitando botão de início');
+          startButton.disabled = false;
+        }
+      }
+      
       // Verificar se o step está realmente visível
       setTimeout(() => {
         const isVisible = window.getComputedStyle(targetStep).display !== 'none';
         console.log(`🔍 Step ${stepId} visibilidade: ${isVisible ? 'visível' : 'oculto'}`);
         
         if (!isVisible) {
-          console.warn(`⚠️ Step ${stepId} não está visível mesmo após adicionar a classe 'active'`);
+          console.warn(`⚠️ Step ${stepId} is not visible even after adding 'active' class`);
           // Forçar visibilidade como fallback
           targetStep.style.display = 'block';
         }
@@ -842,7 +861,7 @@
       
       const collectionsContainer = document.querySelector('.collections-list');
       if (!collectionsContainer) {
-        console.error('❌ Container de collections não encontrado');
+        console.error('❌ Collections container not found');
         return;
       }
       
@@ -853,8 +872,8 @@
         console.log('ℹ️ Nenhuma collection para renderizar');
         collectionsContainer.innerHTML = `
           <div class="empty-message">
-            Nenhuma coleção de variáveis encontrada.
-            Crie uma coleção de variáveis primeiro.
+            No variable collections found.
+            Create a variable collection first.
           </div>
         `;
         return;
@@ -967,7 +986,7 @@
 
     // Nova função para iniciar a análise automática
     function startAutoAnalysis() {
-      console.log('🔄 Iniciando análise automática...');
+      console.log('🔄 Starting automatic analysis...');
       
       // Mostrar o spinner de análise automática
       document.getElementById('auto-analyze-spinner').style.display = 'block';
@@ -1091,9 +1110,9 @@
         value: {}
       }));
       
-      console.log('🗑️ Enviando variáveis para exclusão:', variables);
+      console.log('🗑️ Sending variables for deletion:', variables);
       
-      const message = `Tem certeza que deseja excluir ${variables.length} ${variables.length === 1 ? 'variável' : 'variáveis'}?`;
+      const message = `Are you sure you want to delete ${variables.length} ${variables.length === 1 ? 'variable' : 'variables'}?`;
       if (!confirm(message)) {
         return;
       }
@@ -1115,10 +1134,10 @@
         
         console.log('✅ Mensagem enviada para o plugin');
       } catch (error) {
-        console.error('❌ Erro ao enviar mensagem:', error);
+        console.error('❌ Error sending message:', error);
         deleteBtn.textContent = originalText;
         deleteBtn.disabled = false;
-        alert('Erro ao tentar excluir as variáveis: ' + error.message);
+        alert('Error trying to delete variables: ' + error.message);
       }
     }
 
@@ -1132,7 +1151,7 @@
     }
 
     function checkAgain() {
-      console.log('🔄 Verificando novamente...');
+      console.log('🔄 Checking again...');
       // Resetar o estado da UI
       resetState();
       // Voltar para o step 1
@@ -1161,7 +1180,7 @@
           }
           
           if (!Array.isArray(msg.collections)) {
-            console.warn('⚠️ Collections não é um array:', msg.collections);
+            console.warn('⚠️ Collections is not an array:', msg.collections);
             msg.collections = [];
           }
           
@@ -1182,29 +1201,29 @@
           }
           
           if (!Array.isArray(msg.variables)) {
-            console.warn('⚠️ Variáveis não é um array:', msg.variables);
+            console.warn('⚠️ Variables is not an array:', msg.variables);
             msg.variables = [];
           }
           
-          console.log('📊 Variáveis não utilizadas recebidas:', msg.variables.length, msg.variables);
-          console.log('📊 Estatísticas recebidas:', msg.stats);
+          console.log('📊 Unused variables received:', msg.variables.length, msg.variables);
+          console.log('📊 Statistics received:', msg.stats);
           
-          // Atualizar estatísticas
+          // Update statistics
           if (msg.stats) {
-            console.log('📊 Atualizando contadores na UI com:', msg.stats);
-            // Atualizar contadores no step 2
+            console.log('📊 Updating UI counters with:', msg.stats);
+            // Update counters in step 2
             document.getElementById('analyzedVarsCount').textContent = msg.stats.totalVariables || 0;
             document.getElementById('unusedVarsCount').textContent = msg.variables.length;
             document.getElementById('deletionErrorsCount').textContent = '0';
           } else {
-            console.warn('⚠️ Sem estatísticas na resposta');
+            console.warn('⚠️ No statistics in response');
           }
           
           if (msg.variables && msg.variables.length > 0) {
             const unusedVarsContainer = document.getElementById('unusedVarsContainer');
             unusedVarsContainer.innerHTML = '';
             
-            console.log('📊 Renderizando', msg.variables.length, 'variáveis não utilizadas na UI');
+            console.log('📊 Rendering', msg.variables.length, 'unused variables in UI');
             
             // Adicionar cada variável não utilizada à lista
             msg.variables.forEach(v => {
@@ -1231,7 +1250,7 @@
               
               const collectionSpan = document.createElement('div');
               collectionSpan.className = 'unused-var-collection';
-              collectionSpan.textContent = `Collection ${v.collection.replace(/[^0-9]/g, '')}`;
+              collectionSpan.textContent = v.collection || 'Unknown Collection';
               
               varItem.appendChild(leftContainer);
               varItem.appendChild(collectionSpan);
@@ -1257,15 +1276,56 @@
             updateDeleteButton();
             showStep('step2');
           } else {
-            unusedVarsContainer.innerHTML = `
-              <div class="empty-results">
-                <p>All variables in the selected collections are being used.</p>
-                <button onclick="showStep('step1')" class="button">
-                  Back to collection selection
-                </button>
+            console.log('ℹ️ No unused variables found');
+            
+            // Mostrar mensagem no step 1 e não avançar para o step 2
+            resetState(); // Resetar o estado da UI
+            
+            // Remover mensagem anterior se existir
+            const existingAlert = document.querySelector('.no-unused-vars-alert');
+            if (existingAlert) {
+              existingAlert.parentNode.removeChild(existingAlert);
+            }
+            
+            // Criar e mostrar a mensagem de alerta
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'no-unused-vars-alert';
+            alertDiv.style.backgroundColor = '#F8F9FA';
+            alertDiv.style.padding = '16px';
+            alertDiv.style.borderRadius = '8px';
+            alertDiv.style.marginTop = '16px';
+            alertDiv.style.textAlign = 'center';
+            alertDiv.style.color = '#1BC47D';
+            alertDiv.style.fontWeight = '500';
+            alertDiv.innerHTML = `
+              <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="12" fill="#1BC47D"/>
+                  <path d="M16.95 9.3L10.95 15.3L7.05 11.4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span style="margin-left: 8px; font-size: 16px;">There are no unused variables in the document</span>
               </div>
             `;
-            showStep('step2');
+            
+            // Adicionar a mensagem após o container de collections
+            const collectionsContainer = document.getElementById('collections');
+            if (collectionsContainer && collectionsContainer.parentNode) {
+              collectionsContainer.parentNode.insertBefore(alertDiv, collectionsContainer.nextSibling);
+              
+              // Remover a mensagem após 5 segundos
+              setTimeout(() => {
+                if (alertDiv.parentNode) {
+                  alertDiv.parentNode.removeChild(alertDiv);
+                }
+              }, 5000);
+            }
+            
+            // Update the unused variables counter in step 1
+            document.getElementById('step1-unused-count').textContent = '0';
+            document.getElementById('step1-unused-count').style.color = '#1BC47D';
+            
+            // Habilitar o botão de início se houver collections selecionadas
+            startButton.disabled = !checkboxes.some(cb => cb.checked);
           }
           break;
 
@@ -1280,7 +1340,7 @@
             console.log('🚀 Chamando showStep para exibir o passo 3');
             showStep('step3');
           } else {
-            console.error('❌ Erro na deleção:', msg.error);
+            console.error('❌ Error in deletion:', msg.error);
             // Restaurar botão e mostrar erro
             if (deleteBtn) {
               deleteBtn.textContent = 'Delete unused variables';
@@ -1304,11 +1364,51 @@
             const unusedCount = msg.variables.length;
             document.getElementById('step1-unused-count').textContent = unusedCount;
             
-            // Se encontrou variáveis não utilizadas, destacar visualmente
+            // If unused variables were found, highlight visually
             if (unusedCount > 0) {
               document.getElementById('step1-unused-count').style.color = '#D73A49';
             } else {
               document.getElementById('step1-unused-count').style.color = '#1BC47D';
+              
+              // Show informative message when there are no unused variables
+              // Remover mensagem anterior se existir
+              const existingAlert = document.querySelector('.no-unused-vars-alert');
+              if (existingAlert) {
+                existingAlert.parentNode.removeChild(existingAlert);
+              }
+              
+              // Criar e mostrar a mensagem de alerta
+              const alertDiv = document.createElement('div');
+              alertDiv.className = 'no-unused-vars-alert';
+              alertDiv.style.backgroundColor = '#F8F9FA';
+              alertDiv.style.padding = '16px';
+              alertDiv.style.borderRadius = '8px';
+              alertDiv.style.marginTop = '16px';
+              alertDiv.style.textAlign = 'center';
+              alertDiv.style.color = '#1BC47D';
+              alertDiv.style.fontWeight = '500';
+              alertDiv.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="12" fill="#1BC47D"/>
+                    <path d="M16.95 9.3L10.95 15.3L7.05 11.4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <span style="margin-left: 8px; font-size: 16px;">There are no unused variables in the document</span>
+                </div>
+              `;
+              
+              // Adicionar a mensagem após o container de collections
+              const collectionsContainer = document.getElementById('collections');
+              if (collectionsContainer && collectionsContainer.parentNode) {
+                collectionsContainer.parentNode.insertBefore(alertDiv, collectionsContainer.nextSibling);
+                
+                // Remover a mensagem após 5 segundos
+                setTimeout(() => {
+                  if (alertDiv.parentNode) {
+                    alertDiv.parentNode.removeChild(alertDiv);
+                  }
+                }, 5000);
+              }
             }
           }
           break;

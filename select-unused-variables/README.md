@@ -1,24 +1,26 @@
-# Select Unused Variables - Plugin Figma
+# Select Unused Variables
 
-Este plugin ajuda você a encontrar todas as variáveis não utilizadas em seu arquivo do Figma.
+This plugin helps you find all unused variables in your Figma file.
 
-## Funcionalidades
+## Features
 
-- Encontra todas as variáveis que não estão sendo utilizadas em seu arquivo
-- Permite selecionar rapidamente cada variável não utilizada
-- Interface simples e intuitiva
+- Finds all variables that are not being used in your file
+- Allows you to quickly select each unused variable
+- Option to delete unused variables
 
-## Como usar
+## How to use
 
-1. Instale o plugin no Figma
-2. Execute o plugin através do menu Plugins > Select Unused Variables
-3. Clique no botão "Encontrar Variáveis Não Utilizadas"
-4. Uma lista de variáveis não utilizadas será exibida
-5. Clique em "Selecionar" ao lado de qualquer variável para selecioná-la no Figma
+1. Install the plugin
+2. Select the variable collections you want to check
+3. Click the "Find Unused Variables" button
+4. A list of unused variables will be displayed
+5. Select the variables you want to delete
+6. Click "Delete Selected" to remove the variables
 
-## Instalação para desenvolvimento
+## Development
 
-1. No Figma, vá para Menu > Plugins > Development > Import plugin from manifest...
-2. Selecione o arquivo `manifest.json` deste projeto
+The plugin is ready to use and does not require a local server or additional compilation.
 
-O plugin está pronto para uso e não requer servidor local ou compilação adicional. 
+## License
+
+MIT 

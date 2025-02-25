@@ -31,7 +31,7 @@ function validateVariablesExist(ids) {
  * Recursively scans nodes for variable usage
  */
 async function scanNodes(nodes, usedVars) {
-    console.log(`🔍 Escaneando ${nodes.length} nós para uso de variáveis`);
+    console.log(`🔍 Scanning ${nodes.length} nodes for variable usage`);
     for (const node of nodes) {
         // Check component instances
         if (node.type === 'INSTANCE') {
@@ -58,37 +58,37 @@ async function scanNodes(nodes, usedVars) {
  */
 async function checkVariableUsage(node, usedVars) {
     try {
-        // Verificar se o nó tem ID
+        // Check if node has ID
         if (!node || !node.id) {
             return;
         }
         
-        console.log(`🔍 Verificando uso de variáveis no nó: ${node.name}, tipo: ${node.type}`);
+        console.log(`🔍 Checking variable usage in node: ${node.name}, type: ${node.type}`);
         
-        // Verificar se o nó tem variáveis vinculadas
+        // Check if node has bound variables
         if ('boundVariables' in node) {
             const boundVars = node.boundVariables;
             if (boundVars) {
-                console.log(`🔍 Nó tem boundVariables:`, boundVars);
-                // Iterar sobre todas as propriedades vinculadas
+                console.log(`🔍 Node has boundVariables:`, boundVars);
+                // Iterate over all bound properties
                 for (const [prop, binding] of Object.entries(boundVars)) {
                     try {
                         if (!binding) continue;
                         
-                        console.log(`🔍 Verificando binding na propriedade ${prop}:`, binding);
+                        console.log(`🔍 Checking binding on property ${prop}:`, binding);
                         
-                        // Normalizar para um array de bindings
+                        // Normalize to an array of bindings
                         const bindings = Array.isArray(binding) ? binding : [binding];
                         
-                        // Verificar cada binding
+                        // Check each binding
                         for (const b of bindings) {
                             if (b && b.type === 'VARIABLE_ALIAS' && b.id) {
                                 usedVars.add(b.id);
-                                console.log(`🔗 Variável utilizada: ${b.id} no nó ${node.name}, propriedade: ${prop}`);
+                                console.log(`🔗 Variable used: ${b.id} in node ${node.name}, property: ${prop}`);
                             }
                         }
                     } catch (err) {
-                        console.warn(`⚠️ Erro ao verificar binding na propriedade ${prop}:`, err);
+                        console.warn(`⚠️ Error checking binding on property ${prop}:`, err);
                     }
                 }
             }
@@ -96,18 +96,12 @@ async function checkVariableUsage(node, usedVars) {
         
         // Check deep properties específicamente para cada tipo de nó
         
-        // Verificar instâncias de componentes
+        // Check main component
         if (node.type === 'INSTANCE') {
             try {
-                // Verificar componente principal
-                const mainComponent = node.mainComponent;
-                if (mainComponent) {
-                    await checkVariableUsage(mainComponent, usedVars);
-                }
-                
-                // Verificar propriedades de componente
+                // Check component properties
                 if (node.componentProperties) {
-                    console.log(`🔍 Verificando componentProperties:`, node.componentProperties);
+                    console.log(`🔍 Checking componentProperties:`, node.componentProperties);
                     
                     for (const [propKey, propValue] of Object.entries(node.componentProperties)) {
                         if (propValue && propValue.boundVariables) {
@@ -116,7 +110,7 @@ async function checkVariableUsage(node, usedVars) {
                                 bindings.forEach(b => {
                                     if (b && b.type === 'VARIABLE_ALIAS' && b.id) {
                                         usedVars.add(b.id);
-                                        console.log(`🔗 Variável utilizada em componentProperty: ${propKey}.${bindingKey} = ${b.id}`);
+                                        console.log(`🔗 Variable used in componentProperty: ${propKey}.${bindingKey} = ${b.id}`);
                                     }
                                 });
                             }
@@ -124,56 +118,56 @@ async function checkVariableUsage(node, usedVars) {
                     }
                 }
             } catch (error) {
-                console.warn(`⚠️ Erro ao verificar instância de componente:`, error);
+                console.warn(`⚠️ Error checking component properties:`, error);
             }
         }
         
-        // Verificar nós de texto (que têm propriedades especiais)
+        // Check text nodes (which have special properties)
         if (node.type === 'TEXT') {
             try {
-                // Verificar estilos de texto vinculados
+                // Check bound text styles
                 if (node.textStyleId) {
                     const textStyle = figma.getStyleById(node.textStyleId);
                     if (textStyle && textStyle.boundVariables) {
-                        console.log(`🔍 Verificando textStyle:`, textStyle.boundVariables);
+                        console.log(`�� Checking textStyle:`, textStyle.boundVariables);
                         
                         for (const [styleKey, binding] of Object.entries(textStyle.boundVariables)) {
                             const bindings = Array.isArray(binding) ? binding : [binding];
                             bindings.forEach(b => {
                                 if (b && b.type === 'VARIABLE_ALIAS' && b.id) {
                                     usedVars.add(b.id);
-                                    console.log(`🔗 Variável utilizada em textStyle: ${styleKey} = ${b.id}`);
+                                    console.log(`🔗 Variable used in textStyle: ${styleKey} = ${b.id}`);
                                 }
                             });
                         }
                     }
                 }
                 
-                // Verificar fills e effects específicamente
+                // Check fills and effects specifically
                 ['fills', 'effects'].forEach(prop => {
                     if (node[prop] && node[prop].boundVariables) {
-                        console.log(`🔍 Verificando ${prop} em nó de texto:`, node[prop].boundVariables);
+                        console.log(`🔍 Checking ${prop} in text node:`, node[prop].boundVariables);
                         
                         for (const [key, binding] of Object.entries(node[prop].boundVariables)) {
                             const bindings = Array.isArray(binding) ? binding : [binding];
                             bindings.forEach(b => {
                                 if (b && b.type === 'VARIABLE_ALIAS' && b.id) {
                                     usedVars.add(b.id);
-                                    console.log(`🔗 Variável utilizada em ${prop}.${key} = ${b.id}`);
+                                    console.log(`🔗 Variable used in ${prop}.${key} = ${b.id}`);
                                 }
                             });
                         }
                     }
                 });
             } catch (error) {
-                console.warn(`⚠️ Erro ao verificar nó de texto:`, error);
+                console.warn(`⚠️ Error checking text node:`, error);
             }
         }
         
-        // Verificar todas as propriedades vinculáveis
+        // Check all bindable properties
         for (const prop of BINDABLE_PROPERTIES) {
             if (node[prop] && node[prop].boundVariables) {
-                console.log(`🔍 Verificando propriedade ${prop}:`, node[prop].boundVariables);
+                console.log(`🔍 Checking property ${prop}:`, node[prop].boundVariables);
                 
                 for (const [key, binding] of Object.entries(node[prop].boundVariables)) {
                     try {
@@ -181,41 +175,41 @@ async function checkVariableUsage(node, usedVars) {
                         bindings.forEach(b => {
                             if (b && b.type === 'VARIABLE_ALIAS' && b.id) {
                                 usedVars.add(b.id);
-                                console.log(`🔗 Variável utilizada em ${prop}.${key} = ${b.id}`);
+                                console.log(`🔗 Variable used in ${prop}.${key} = ${b.id}`);
                             }
                         });
                     } catch (error) {
-                        console.warn(`⚠️ Erro ao verificar binding em ${prop}.${key}:`, error);
+                        console.warn(`⚠️ Error checking binding in ${prop}.${key}:`, error);
                     }
                 }
             }
         }
         
-        // Verificar estilos vinculados
+        // Check bound styles
         if ('styles' in node && node.styles) {
             for (const [styleType, styleId] of Object.entries(node.styles)) {
                 try {
                     const style = figma.getStyleById(styleId);
                     if (style && style.boundVariables) {
-                        console.log(`🔍 Verificando style ${styleType}:`, style.boundVariables);
+                        console.log(`🔍 Checking style ${styleType}:`, style.boundVariables);
                         
                         for (const [key, binding] of Object.entries(style.boundVariables)) {
                             const bindings = Array.isArray(binding) ? binding : [binding];
                             bindings.forEach(b => {
                                 if (b && b.type === 'VARIABLE_ALIAS' && b.id) {
                                     usedVars.add(b.id);
-                                    console.log(`🔗 Variável utilizada em style.${styleType}.${key} = ${b.id}`);
+                                    console.log(`🔗 Variable used in style.${styleType}.${key} = ${b.id}`);
                                 }
                             });
                         }
                     }
                 } catch (error) {
-                    console.warn(`⚠️ Erro ao verificar style ${styleType}:`, error);
+                    console.warn(`⚠️ Error checking style ${styleType}:`, error);
                 }
             }
         }
     } catch (error) {
-        console.warn(`⚠️ Erro ao verificar uso de variáveis para nó ${node.name || 'unknown'}:`, error);
+        console.warn(`⚠️ Error checking variable usage for node ${node.name || 'unknown'}:`, error);
     }
 }
 /**
@@ -529,13 +523,13 @@ function checkVariableReferences(variableId, collections) {
                     // Verificar se o valor é uma referência a outra variável
                     if (value && typeof value === 'object' && value.type === 'VARIABLE_ALIAS' && value.id === variableId) {
                         referencedBy.add(otherVarId);
-                        console.log(`🔗 Variável ${variableId} referenciada por ${otherVarId} (${otherVar.name}) no modo ${modeId}`);
+                        console.log(`🔗 Variable ${variableId} referenced by ${otherVarId} (${otherVar.name}) in mode ${modeId}`);
                     }
                 }
             });
         });
     } catch (error) {
-        console.warn(`⚠️ Erro ao verificar referências para a variável ${variableId}:`, error);
+        console.warn(`⚠️ Error checking references for variable ${variableId}:`, error);
     }
     
     return Array.from(referencedBy);
@@ -579,96 +573,15 @@ async function createTextNode(unusedVars) {
         return null;
     }
 }
-/**
- * Creates test variables for debugging purposes
- */
-async function createTestVariables() {
-    try {
-        console.log('🔧 Criando variáveis de teste para diagnóstico...');
-        
-        // Verificar se já existe uma collection de teste
-        const existingCollections = figma.variables.getLocalVariableCollections();
-        let testCollection = existingCollections.find(c => c.name === 'Test Variables');
-        
-        // Criar nova collection se não existir
-        if (!testCollection) {
-            testCollection = figma.variables.createVariableCollection('Test Variables');
-            console.log('📊 Collection de teste criada:', testCollection.id);
-        }
-        
-        // Criar algumas variáveis de teste na collection
-        const colors = ['#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF'];
-        const varNames = ['Primary', 'Secondary', 'Tertiary', 'Background', 'Accent'];
-        
-        // Criar ou obter o modo padrão
-        const modeId = testCollection.modes[0].modeId;
-        
-        // Criar variáveis com cores diferentes
-        for (let i = 0; i < varNames.length; i++) {
-            const varName = `${varNames[i]} Color`;
-            const color = colors[i];
-            
-            // Verificar se a variável já existe
-            const existingVar = figma.variables.getLocalVariables()
-                .find(v => v.name === varName && v.variableCollectionId === testCollection.id);
-            
-            if (!existingVar) {
-                // Criar nova variável
-                const newVar = figma.variables.createVariable(
-                    varName, 
-                    testCollection.id, 
-                    'COLOR'
-                );
-                
-                // Definir valor para o modo padrão
-                newVar.setValueForMode(modeId, {
-                    r: parseInt(color.slice(1, 3), 16) / 255,
-                    g: parseInt(color.slice(3, 5), 16) / 255,
-                    b: parseInt(color.slice(5, 7), 16) / 255,
-                    a: 1
-                });
-                
-                console.log(`📊 Variável de teste criada: ${varName} (${newVar.id})`);
-            }
-        }
-        
-        // Criar uma variável não utilizada intencionalmente
-        const unusedVarName = 'Unused Test Color';
-        const existingUnusedVar = figma.variables.getLocalVariables()
-            .find(v => v.name === unusedVarName && v.variableCollectionId === testCollection.id);
-            
-        if (!existingUnusedVar) {
-            const unusedVar = figma.variables.createVariable(
-                unusedVarName, 
-                testCollection.id, 
-                'COLOR'
-            );
-            
-            unusedVar.setValueForMode(modeId, {
-                r: 0.5,
-                g: 0.5,
-                b: 0.5,
-                a: 1
-            });
-            
-            console.log(`📊 Variável não utilizada criada: ${unusedVarName} (${unusedVar.id})`);
-        }
-        
-        return true;
-    } catch (error) {
-        console.error('❌ Erro ao criar variáveis de teste:', error);
-        return false;
-    }
-}
 // Event Handlers
 figma.ui.onmessage = async (msg) => {
     console.log('📨 Plugin received message:', msg.type, msg);
     switch (msg.type) {
         case 'init':
             try {
-                console.log('🚀 Inicializando plugin...');
+                console.log('🚀 Initializing plugin...');
                 const variables = figma.variables.getLocalVariables();
-                console.log(`📚 Encontradas ${variables.length} variáveis locais`);
+                console.log(`📚 Found ${variables.length} local variables`);
                 
                 const collections = figma.variables.getLocalVariableCollections().map(collection => ({
                     id: collection.id,
@@ -676,7 +589,7 @@ figma.ui.onmessage = async (msg) => {
                     variableIds: collection.variableIds // Adicionar IDs das variáveis
                 }));
                 
-                console.log(`📚 Encontradas ${collections.length} collections`);
+                console.log(`📚 Found ${collections.length} collections`);
                 
                 // Enviar collections para a UI
                 figma.ui.postMessage({
@@ -696,11 +609,11 @@ figma.ui.onmessage = async (msg) => {
             
         case 'auto-analyze':
             try {
-                console.log('🔍 Iniciando análise automática com collections:', msg.collections);
+                console.log('🔍 Starting automatic analysis with collections:', msg.collections);
                 const { collections } = msg;
                 
                 if (!collections || !Array.isArray(collections) || collections.length === 0) {
-                    console.warn('⚠️ Nenhuma collection para análise automática');
+                    console.warn('⚠️ No collections for automatic analysis');
                     figma.ui.postMessage({
                         type: 'auto-analysis-result',
                         variables: [],
@@ -717,10 +630,10 @@ figma.ui.onmessage = async (msg) => {
                 
                 // Obter todas as variáveis das collections selecionadas
                 const allVars = await getAllVariables(collections);
-                console.log(`📚 Total de variáveis nas collections selecionadas: ${allVars.length}`);
+                console.log(`📚 Total variables in selected collections: ${allVars.length}`);
                 
                 if (allVars.length === 0) {
-                    console.warn('⚠️ Não há variáveis nas collections selecionadas');
+                    console.warn('⚠️ No variables in the selected collections');
                     figma.ui.postMessage({
                         type: 'auto-analysis-result',
                         variables: [],
@@ -738,7 +651,7 @@ figma.ui.onmessage = async (msg) => {
                 // Processar cada página para encontrar variáveis utilizadas
                 for (const page of figma.root.children) {
                     try {
-                        console.log(`📄 Verificando variáveis na página: ${page.name} (análise automática)`);
+                        console.log(`📄 Checking variables in page: ${page.name} (automatic analysis)`);
                         await scanNodes(page.children, usedVarIds);
                     } catch (error) {
                         console.error(`❌ Erro ao verificar página ${page.name}:`, error);
@@ -746,7 +659,7 @@ figma.ui.onmessage = async (msg) => {
                 }
                 
                 // Verificar estilos de texto
-                console.log('🔍 Verificando estilos de texto (análise automática)...');
+                console.log('🔍 Checking text styles (automatic analysis)...');
                 const textStyles = figma.getLocalTextStyles();
                 
                 for (const style of textStyles) {
@@ -771,7 +684,7 @@ figma.ui.onmessage = async (msg) => {
                     .filter(Boolean);
                 
                 // Verificar se há variáveis utilizadas por outras variáveis
-                console.log('🔍 Verificando referências entre variáveis (análise automática)...');
+                console.log('🔍 Checking references between variables (automatic analysis)...');
                 const transitiveUsedVars = new Set(usedVarIds);
                 
                 // Iterar até não encontrar novas variáveis
@@ -794,11 +707,11 @@ figma.ui.onmessage = async (msg) => {
                     }
                 }
                 
-                console.log(`📊 Total de variáveis utilizadas (análise automática): ${transitiveUsedVars.size}`);
+                console.log(`📊 Total variables used (automatic analysis): ${transitiveUsedVars.size}`);
                 
                 // Filtrar variáveis não utilizadas
                 const unusedVariables = allVars.filter(v => !transitiveUsedVars.has(v.id));
-                console.log(`📊 Total de variáveis não utilizadas (análise automática): ${unusedVariables.length}`);
+                console.log(`📊 Total unused variables (automatic analysis): ${unusedVariables.length}`);
                 
                 // Mapear as variáveis não utilizadas para o formato de resposta
                 const unusedVarsForUI = unusedVariables.map(v => ({
@@ -820,7 +733,7 @@ figma.ui.onmessage = async (msg) => {
                     }
                 });
                 
-                console.log(`📊 Análise automática completa: ${unusedVarsForUI.length} variáveis não utilizadas em ${executionTime}ms`);
+                console.log(`�� Automatic analysis complete: ${unusedVarsForUI.length} unused variables in ${executionTime}ms`);
             }
             catch (error) {
                 console.error('❌ Erro na análise automática:', error);
@@ -839,7 +752,7 @@ figma.ui.onmessage = async (msg) => {
             
         case 'start-search':
             try {
-                console.log('🔍 Iniciando busca com collections:', msg.collections);
+                console.log('🔍 Starting search with collections:', msg.collections);
                 const { collections } = msg;
                 
                 // Verificar se as collections estão no formato correto
@@ -853,15 +766,15 @@ figma.ui.onmessage = async (msg) => {
                 collections.forEach(collectionId => {
                     const collection = figma.variables.getVariableCollectionById(collectionId);
                     if (collection) {
-                        console.log(`📚 Collection encontrada: ${collection.name} (${collection.id})`);
-                        console.log(`📚 Modos na collection: ${collection.modes.length}`);
-                        console.log(`📚 Variáveis na collection: ${collection.variableIds.length}`);
+                        console.log(`📚 Collection found: ${collection.name} (${collection.id})`);
+                        console.log(`📚 Modes in collection: ${collection.modes.length}`);
+                        console.log(`📚 Variables in collection: ${collection.variableIds.length}`);
                         
                         collectionsData.push(collection);
                         
                         // Listar as variáveis desta collection
                         if (collection.variableIds.length > 0) {
-                            console.log(`📚 Variáveis da collection ${collection.name}:`);
+                            console.log(`📚 Variables in collection ${collection.name}:`);
                             collection.variableIds.forEach(varId => {
                                 const variable = figma.variables.getVariableById(varId);
                                 if (variable) {
@@ -871,33 +784,33 @@ figma.ui.onmessage = async (msg) => {
                                 }
                             });
                         } else {
-                            console.warn(`⚠️ Collection ${collection.name} não tem variáveis`);
+                            console.warn(`⚠️ Collection ${collection.name} has no variables`);
                         }
                     } else {
-                        console.warn(`⚠️ Collection não encontrada: ${collectionId}`);
+                        console.warn(`⚠️ Collection not found: ${collectionId}`);
                     }
                 });
                 
                 // Verificar variáveis locais
                 const allVariables = figma.variables.getLocalVariables();
-                console.log(`📚 Total de variáveis locais: ${allVariables.length}`);
+                console.log(`📚 Total local variables: ${allVariables.length}`);
                 
                 const startTime = Date.now();
                 
-                // Verificar se é necessário criar variáveis de teste
+                // Verificar se existem variáveis no arquivo
                 if (allVariables.length === 0) {
-                    console.log('⚠️ Não há variáveis no arquivo, criando variáveis de teste...');
-                    await createTestVariables();
+                    console.log('⚠️ No variables in the file');
+                    figma.notify('No variables exist in the document');
                 }
                 
-                console.log('🔍 Verificando variáveis utilizadas no documento...');
+                console.log('🔍 Checking variables used in the document...');
                 
                 // Obter todas as variáveis das collections selecionadas
                 const allVars = await getAllVariables(collections);
-                console.log(`📚 Total de variáveis nas collections selecionadas: ${allVars.length}`);
+                console.log(`�� Total variables in selected collections: ${allVars.length}`);
                 
                 if (allVars.length === 0) {
-                    console.warn('⚠️ Não há variáveis nas collections selecionadas');
+                    console.warn('⚠️ No variables in the selected collections');
                     figma.ui.postMessage({
                         type: 'complete',
                         variables: [],
@@ -916,7 +829,7 @@ figma.ui.onmessage = async (msg) => {
                 // Processar cada página para encontrar variáveis utilizadas
                 for (const page of figma.root.children) {
                     try {
-                        console.log(`📄 Verificando variáveis na página: ${page.name}`);
+                        console.log(`📄 Checking variables in page: ${page.name}`);
                         await scanNodes(page.children, usedVarIds);
                     } catch (error) {
                         console.error(`❌ Erro ao verificar página ${page.name}:`, error);
@@ -924,9 +837,8 @@ figma.ui.onmessage = async (msg) => {
                 }
                 
                 // Verificar estilos de texto
-                console.log('🔍 Verificando estilos de texto...');
-                const textStyles = figma.getLocalTextStyles();
-                console.log(`📊 Encontrados ${textStyles.length} estilos de texto`);
+                console.log('🔍 Checking text styles...');
+                console.log(`📊 Found ${textStyles.length} text styles`);
                 
                 for (const style of textStyles) {
                     try {
@@ -936,7 +848,7 @@ figma.ui.onmessage = async (msg) => {
                                 bindings.forEach(b => {
                                     if (b && b.type === 'VARIABLE_ALIAS' && b.id) {
                                         usedVarIds.add(b.id);
-                                        console.log(`🔗 Variável ${b.id} utilizada em estilo de texto: ${style.name}, propriedade: ${property}`);
+                                        console.log(`🔗 Variable ${b.id} used in text style: ${style.name}, property: ${property}`);
                                     }
                                 });
                             }
@@ -947,7 +859,7 @@ figma.ui.onmessage = async (msg) => {
                 }
                 
                 // Verificar se há variáveis utilizadas por outras variáveis
-                console.log('🔍 Verificando referências entre variáveis...');
+                console.log('🔍 Checking references between variables...');
                 const transitiveUsedVars = new Set(usedVarIds);
                 
                 // Iterar até não encontrar novas variáveis
@@ -964,18 +876,18 @@ figma.ui.onmessage = async (msg) => {
                         for (const refId of refs) {
                             if (!transitiveUsedVars.has(refId)) {
                                 transitiveUsedVars.add(refId);
-                                console.log(`🔍 Adicionando variável transitiva: ${refId}`);
+                                console.log(`🔍 Adding transitive variable: ${refId}`);
                                 foundNewVariables = true;
                             }
                         }
                     }
                 }
                 
-                console.log(`📊 Total de variáveis utilizadas (depois de análise transitiva): ${transitiveUsedVars.size}`);
+                console.log(`📊 Total variables used (after transitive analysis): ${transitiveUsedVars.size}`);
                 
                 // Filtrar variáveis não utilizadas
                 const unusedVariables = allVars.filter(v => !transitiveUsedVars.has(v.id));
-                console.log(`📊 Total de variáveis não utilizadas: ${unusedVariables.length}`);
+                console.log(`📊 Total unused variables: ${unusedVariables.length}`);
                 
                 // Mapear as variáveis não utilizadas para o formato de resposta
                 const unusedVarsForUI = unusedVariables.map(v => ({
@@ -984,16 +896,9 @@ figma.ui.onmessage = async (msg) => {
                     collection: v.collection
                 }));
                 
-                // Se não houver variáveis não utilizadas, mas houver variáveis nas collections,
-                // adicionar uma variável fictícia para fins de teste
+                // Se não houver variáveis não utilizadas, registrar isso no console
                 if (unusedVarsForUI.length === 0 && allVars.length > 0) {
-                    console.log('🔧 Todas as variáveis estão sendo utilizadas. Adicionando variável de teste para depuração.');
-                    const testVar = allVars[0];
-                    unusedVarsForUI.push({
-                        id: testVar.id,
-                        name: testVar.name + ' (TEST)',
-                        collection: testVar.collection
-                    });
+                    console.log('✅ All variables are being used.');
                 }
                 
                 const executionTime = Date.now() - startTime;
@@ -1009,14 +914,14 @@ figma.ui.onmessage = async (msg) => {
                     }
                 };
                 
-                console.log('📤 Enviando resposta para UI:', response);
+                console.log('📤 Sending response to UI:', response);
                 figma.ui.postMessage(response);
                 
-                figma.notify(`Encontradas ${unusedVarsForUI.length} variáveis não utilizadas em ${executionTime}ms`);
+                figma.notify(`Found ${unusedVarsForUI.length} unused variables in ${executionTime}ms`);
             }
             catch (error) {
-                console.error('❌ Erro na busca:', error);
-                figma.notify('Ocorreu um erro durante a busca');
+                console.error('❌ Error in search:', error);
+                figma.notify('An error occurred during the search');
                 figma.ui.postMessage({
                     type: 'complete',
                     variables: [],
