@@ -649,7 +649,7 @@
         </div>
       </div>
       <div class="footer-actions">
-        <button id="start-search" disabled>Select unused variables</button>
+        <button id="start-search">Select unused variables</button>
       </div>
     </div>
 
@@ -733,6 +733,11 @@
     window.onload = () => {
       console.log('🚀 UI inicializada, solicitando collections...');
       
+      // Habilitar o botão de início por padrão, já que as collections serão selecionadas por padrão
+      if (startButton) {
+        startButton.disabled = false;
+      }
+      
       // Configurar handlers dos botões
       document.getElementById('back-to-step1')?.addEventListener('click', () => {
         showStep('step1');
@@ -793,7 +798,8 @@
       const selectAllLabel = document.createElement('label');
       const selectAllCheckbox = document.createElement('input');
       selectAllCheckbox.type = 'checkbox';
-      selectAllCheckbox.id = 'select-all';
+      selectAllCheckbox.id = 'select-all-collections';
+      selectAllCheckbox.checked = true;
       
       selectAllLabel.appendChild(selectAllCheckbox);
       selectAllLabel.appendChild(document.createTextNode('Selecionar todas as coleções'));
@@ -823,6 +829,7 @@
         checkbox.type = 'checkbox';
         checkbox.value = collection.id;
         checkbox.dataset.name = collection.name;
+        checkbox.checked = true;
         
         const nameSpan = document.createElement('span');
         nameSpan.textContent = collection.name || '[Sem nome]';

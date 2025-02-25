@@ -272,7 +272,14 @@ async function getAllVariables(selectedCollections) {
         const rawVariables = figma.variables.getLocalVariables();
         console.log(`📊 Found ${rawVariables.length} variables in total`);
         return rawVariables
-            .filter(v => !(selectedCollections === null || selectedCollections === void 0 ? void 0 : selectedCollections.length) || selectedCollections.includes(v.variableCollectionId))
+            .filter(v => {
+                // Se não houver collections selecionadas, retornar todas as variáveis
+                if (!selectedCollections || !selectedCollections.length) {
+                    return true;
+                }
+                // Caso contrário, filtrar apenas as variáveis das collections selecionadas
+                return selectedCollections.includes(v.variableCollectionId);
+            })
             .map(v => {
             try {
                 const collection = figma.variables.getVariableCollectionById(v.variableCollectionId);
