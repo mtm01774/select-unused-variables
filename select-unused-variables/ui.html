@@ -262,7 +262,7 @@
       scrollbar-color: transparent transparent;
     }
 
-    /* Estilo para navegadores WebKit (Chrome, Safari, etc) */
+    /* Style for WebKit browsers (Chrome, Safari, etc) */
     .variable-list::-webkit-scrollbar {
       width: 8px;
     }
@@ -280,7 +280,7 @@
       background-color: rgba(0, 0, 0, 0.2);
     }
 
-    /* Estilo para Firefox */
+    /* Style for Firefox */
     .variable-list:hover {
       scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
     }
@@ -419,7 +419,7 @@
       color: rgb(17, 19, 20);
     }
 
-    /* Novo container para o conteúdo principal */
+    /* New container for the main content */
     .content-wrapper {
       padding: 20px 20px 80px 20px;
       min-height: calc(100vh - 80px);
@@ -427,7 +427,7 @@
       flex-direction: column;
     }
 
-    /* Container fixo para os botões */
+    /* Fixed container for buttons */
     .footer-actions {
       position: fixed;
       bottom: 0;
@@ -440,7 +440,7 @@
       z-index: 100;
     }
 
-    /* Ajuste para o botão dentro do footer */
+    /* Adjustment for the button inside the footer */
     .footer-actions button {
       width: 100%;
       max-width: 100%;
@@ -763,9 +763,9 @@
     let collections = document.getElementById('collections');
     let selectAllCollectionsCheckbox = document.getElementById('select-all-collections');
     let unusedVarsContainer = document.getElementById('unusedVarsContainer');
-    let checkboxes = [];
+    let checkboxes = []; // Clear checkboxes array
 
-    // Função para atualizar o estado do botão de início
+    // Function to update the start button state
     function updateStartButton() {
       const anyChecked = checkboxes.some(cb => cb.checked);
       if (startButton) {
@@ -775,14 +775,14 @@
 
     // Initialize
     window.onload = () => {
-      console.log('🚀 UI inicializada, solicitando collections...');
+      console.log('🚀 UI initialized, requesting collections...');
       
-      // Habilitar o botão de início por padrão
+      // Enable the start button by default
       if (startButton) {
         startButton.disabled = false;
       }
       
-      // Configurar handlers dos botões
+      // Configure button event handlers
       document.getElementById('back-to-step1')?.addEventListener('click', () => {
         showStep('step1');
       });
@@ -791,7 +791,7 @@
         showStep('step2');
       });
       
-      // Solicitar collections ao plugin
+      // Request collections again
       parent.postMessage({ pluginMessage: { type: 'init' } }, '*');
     };
 
@@ -799,65 +799,64 @@
     function resetState() {
       step1Progress.style.display = 'none';
       
-      // Verificar se há checkboxes selecionadas antes de habilitar o botão
+      // Check if there are selected checkboxes before enabling the button
       const anyChecked = checkboxes.some(cb => cb.checked);
       startButton.disabled = !anyChecked;
       
-      console.log(`🔄 Estado resetado. Botão ${anyChecked ? 'habilitado' : 'desabilitado'} baseado em ${checkboxes.length} checkboxes`);
+      console.log(`🔄 State reset. Button ${anyChecked ? 'enabled' : 'disabled'} based on ${checkboxes.length} checkboxes`);
     }
 
-    // Função para mostrar um step específico
+    // Function to show a specific step
     function showStep(stepId) {
-      console.log(`🔄 Mudando para o step: ${stepId}`);
+      console.log(`🔄 Changing to step: ${stepId}`);
       
-      // Verificar se o elemento existe
+      // Check if the element exists
       const targetStep = document.getElementById(stepId);
       if (!targetStep) {
         console.error(`❌ Step ${stepId} not found in DOM`);
         return;
       }
       
-      // Verificar todos os steps disponíveis
+      // Check all available steps
       const allSteps = document.querySelectorAll('.step');
-      console.log(`📊 Total de steps encontrados: ${allSteps.length}`);
+      console.log(`📊 Total of steps found: ${allSteps.length}`);
       
-      // Esconder todos os steps
+      // Hide all steps
       allSteps.forEach(step => {
         step.classList.remove('active');
-        console.log(`🔄 Removendo classe 'active' de ${step.id}`);
+        console.log(`🔄 Removing 'active' class from ${step.id}`);
       });
       
-      // Mostrar o step desejado
+      // Show the desired step
       targetStep.classList.add('active');
-      console.log(`✅ Step ${stepId} ativado com sucesso`);
+      console.log(`✅ Step ${stepId} activated successfully`);
       
-      // Se estiver voltando para o step 1, verificar se há checkboxes selecionadas
-      // e habilitar o botão de início se necessário
+      // If returning to step 1, check if there are selected checkboxes
       if (stepId === 'step1') {
         console.log('🔄 Going back to step 1, checking checkboxes state');
         const anyChecked = checkboxes.some(cb => cb.checked);
         if (anyChecked && startButton) {
-          console.log('✅ Existem checkboxes selecionadas, habilitando botão de início');
+          console.log('✅ There are selected checkboxes, enabling start button');
           startButton.disabled = false;
         }
       }
       
-      // Verificar se o step está realmente visível
+      // Check if the step is actually visible
       setTimeout(() => {
         const isVisible = window.getComputedStyle(targetStep).display !== 'none';
-        console.log(`🔍 Step ${stepId} visibilidade: ${isVisible ? 'visível' : 'oculto'}`);
+        console.log(`🔍 Step ${stepId} visibility: ${isVisible ? 'visible' : 'hidden'}`);
         
         if (!isVisible) {
           console.warn(`⚠️ Step ${stepId} is not visible even after adding 'active' class`);
-          // Forçar visibilidade como fallback
+          // Force visibility as fallback
           targetStep.style.display = 'block';
         }
       }, 50);
     }
 
-    // Função para renderizar collections
+    // Function to render collections
     function renderCollections(collections) {
-      console.log('🎨 Renderizando collections:', collections);
+      console.log('🎨 Rendering collections:', collections);
       
       const collectionsContainer = document.querySelector('.collections-list');
       if (!collectionsContainer) {
@@ -866,10 +865,10 @@
       }
       
       collectionsContainer.innerHTML = '';
-      checkboxes = []; // Limpar array de checkboxes
+      checkboxes = []; // Clear checkboxes array
 
       if (!collections || !Array.isArray(collections) || collections.length === 0) {
-        console.log('ℹ️ Nenhuma collection para renderizar');
+        console.log('ℹ️ No collections to render');
         collectionsContainer.innerHTML = `
           <div class="empty-message">
             No variable collections found.
@@ -879,7 +878,7 @@
         return;
       }
 
-      console.log(`📊 Renderizando ${collections.length} collections`);
+      console.log(`📊 Rendering ${collections.length} collections`);
 
       // Add "Select All" checkbox
       const selectAllDiv = document.createElement('div');
@@ -925,11 +924,11 @@
       // Add individual collection checkboxes
       collections.forEach(collection => {
         if (!collection || !collection.id) {
-          console.warn('⚠️ Collection inválida:', collection);
+          console.warn('⚠️ Invalid collection:', collection);
           return;
         }
 
-        console.log(`📝 Renderizando collection: ${collection.name} (${collection.id})`);
+        console.log(`📝 Rendering collection: ${collection.name} (${collection.id})`);
         
         const itemDiv = document.createElement('div');
         itemDiv.className = 'collection-item';
@@ -942,7 +941,7 @@
         checkbox.checked = true;
         
         const nameSpan = document.createElement('span');
-        nameSpan.textContent = collection.name || '[Sem nome]';
+        nameSpan.textContent = collection.name || '[Unnamed]';
         
         const countSpan = document.createElement('span');
         countSpan.className = 'variable-count';
@@ -959,7 +958,7 @@
         checkboxes.push(checkbox);
       });
 
-      console.log(`✅ Renderizadas ${checkboxes.length} collections`);
+      console.log(`✅ Rendered ${checkboxes.length} collections`);
 
       // Handle "Select All" checkbox
       selectAllCheckbox.addEventListener('change', (e) => {
@@ -980,31 +979,31 @@
 
       updateStartButton();
       
-      // Iniciar análise automática após renderizar collections
+      // Start automatic analysis after rendering collections
       startAutoAnalysis();
     }
 
-    // Nova função para iniciar a análise automática
+    // New function to start automatic analysis
     function startAutoAnalysis() {
       console.log('🔄 Starting automatic analysis...');
       
-      // Mostrar o spinner de análise automática
+      // Show the automatic analysis spinner
       document.getElementById('auto-analyze-spinner').style.display = 'block';
       
-      // Obter todas as collections selecionadas
+      // Get all selected collections
       const selectedCollections = Array.from(
         document.querySelectorAll('#collections input[type="checkbox"]:checked:not(#select-all-collections)')
       ).map(input => input.value);
       
       if (selectedCollections.length === 0) {
-        console.warn('⚠️ Nenhuma collection selecionada para análise automática');
+        console.warn('⚠️ No collection selected for automatic analysis');
         document.getElementById('auto-analyze-spinner').style.display = 'none';
         return;
       }
       
-      console.log('📤 Enviando collections para análise automática:', selectedCollections);
+      console.log('📤 Sending collections for automatic analysis:', selectedCollections);
       
-      // Enviar mensagem para o plugin iniciar a análise em segundo plano
+      // Send message to the plugin to start background analysis
       parent.postMessage({
         pluginMessage: {
           type: 'auto-analyze',
@@ -1019,7 +1018,7 @@
         document.querySelectorAll('#collections input[type="checkbox"]:checked:not(#select-all-collections)')
       ).map(input => input.value);
       
-      console.log('📤 Enviando collections selecionadas para busca:', selectedCollections);
+      console.log('📤 Sending selected collections for search:', selectedCollections);
       
       if (selectedCollections.length === 0) {
         alert('Please select at least one collection');
@@ -1029,13 +1028,13 @@
       startButton.disabled = true;
       step1Progress.style.display = 'block';
       
-      // Enviar mensagem para o plugin
+      // Send message to the plugin
       setTimeout(() => {
         const message = {
           type: 'start-search',
           collections: selectedCollections
         };
-        console.log('📤 Mensagem completa:', message);
+        console.log('📤 Complete message:', message);
         
         parent.postMessage({
           pluginMessage: message
@@ -1052,7 +1051,7 @@
         });
         updateStartButton();
       } else if (e.target.closest('.collection-item')) {
-        // Atualizar o estado do "select all" baseado nas collections
+        // Update the "select all" state based on collections
         const allCheckboxes = Array.from(document.querySelectorAll('.collection-item input[type="checkbox"]'));
         const selectAllCheckbox = document.getElementById('select-all-collections');
         if (selectAllCheckbox) {
@@ -1060,7 +1059,7 @@
           selectAllCheckbox.indeterminate = !selectAllCheckbox.checked && allCheckboxes.some(cb => cb.checked);
         }
         
-        // Habilitar/desabilitar o botão de início baseado se há alguma seleção
+        // Enable/disable the start button based on whether there is any selection
         updateStartButton();
       }
     });
@@ -1117,14 +1116,14 @@
         return;
       }
       
-      // Mostrar loading state
+      // Show loading state
       const deleteBtn = document.getElementById('deleteSelectedBtn');
       const originalText = deleteBtn.textContent;
-      deleteBtn.textContent = 'Excluindo...';
+      deleteBtn.textContent = 'Deleting...';
       deleteBtn.disabled = true;
       
       try {
-        // Enviar mensagem para o plugin
+        // Send message to the plugin
         parent.postMessage({ 
           pluginMessage: { 
             type: 'delete-variables',
@@ -1132,7 +1131,7 @@
           }
         }, '*');
         
-        console.log('✅ Mensagem enviada para o plugin');
+        console.log('✅ Message sent to the plugin');
       } catch (error) {
         console.error('❌ Error sending message:', error);
         deleteBtn.textContent = originalText;
@@ -1152,30 +1151,30 @@
 
     function checkAgain() {
       console.log('🔄 Checking again...');
-      // Resetar o estado da UI
+      // Reset the UI state
       resetState();
-      // Voltar para o step 1
+      // Return to step 1
       showStep('step1');
-      // Solicitar collections novamente
+      // Request collections again
       parent.postMessage({ pluginMessage: { type: 'init' } }, '*');
     }
 
-    // Ouvir mensagens do plugin
+    // Listen for messages from the plugin
     window.onmessage = (event) => {
       if (!event.data || !event.data.pluginMessage) {
-        console.warn('⚠️ Mensagem inválida recebida:', event);
+        console.warn('⚠️ Invalid message received:', event);
         return;
       }
 
       const msg = event.data.pluginMessage;
-      console.log('📨 Mensagem recebida:', msg);
+      console.log('📨 Message received:', msg);
 
       switch (msg.type) {
         case 'collections':
-          console.log('📚 Collections recebidas:', msg.collections);
+          console.log('📚 Collections received:', msg.collections);
           
           if (!msg.collections) {
-            console.warn('⚠️ Nenhuma collection recebida');
+            console.warn('⚠️ No collection received');
             msg.collections = [];
           }
           
@@ -1188,15 +1187,15 @@
           break;
 
         case 'progress':
-          console.log('🔄 Progresso:', msg.message);
+          console.log('🔄 Progress:', msg.message);
           break;
 
         case 'complete':
-          console.log('✅ Busca completa:', msg);
+          console.log('✅ Search complete:', msg);
           step1Progress.style.display = 'none';
           
           if (!msg.variables) {
-            console.warn('⚠️ Nenhuma variável recebida');
+            console.warn('⚠️ No variable received');
             msg.variables = [];
           }
           
@@ -1225,7 +1224,7 @@
             
             console.log('📊 Rendering', msg.variables.length, 'unused variables in UI');
             
-            // Adicionar cada variável não utilizada à lista
+            // Add each unused variable to the list
             msg.variables.forEach(v => {
               const varItem = document.createElement('div');
               varItem.className = 'unused-var-item';
@@ -1265,29 +1264,29 @@
               selectAllVarsCheckbox.addEventListener('change', toggleSelectAll);
             }
             
-            // Configurar o botão de deleção
+            // Configure the deletion button
             const deleteButton = document.getElementById('deleteSelectedBtn');
             if (deleteButton) {
               deleteButton.onclick = deleteSelected;
             }
 
-            // Inicializar selectedVariables com todas as variáveis
+            // Initialize selectedVariables with all variables
             selectedVariables = new Set(msg.variables.map(v => v.id));
             updateDeleteButton();
             showStep('step2');
           } else {
             console.log('ℹ️ No unused variables found');
             
-            // Mostrar mensagem no step 1 e não avançar para o step 2
-            resetState(); // Resetar o estado da UI
+            // Show message in step 1 and don't advance to step 2
+            resetState(); // Reset the UI state
             
-            // Remover mensagem anterior se existir
+            // Remove previous message if it exists
             const existingAlert = document.querySelector('.no-unused-vars-alert');
             if (existingAlert) {
               existingAlert.parentNode.removeChild(existingAlert);
             }
             
-            // Criar e mostrar a mensagem de alerta
+            // Create and show the alert message
             const alertDiv = document.createElement('div');
             alertDiv.className = 'no-unused-vars-alert';
             alertDiv.style.backgroundColor = '#F8F9FA';
@@ -1307,12 +1306,12 @@
               </div>
             `;
             
-            // Adicionar a mensagem após o container de collections
+            // Add the message after the collections container
             const collectionsContainer = document.getElementById('collections');
             if (collectionsContainer && collectionsContainer.parentNode) {
               collectionsContainer.parentNode.insertBefore(alertDiv, collectionsContainer.nextSibling);
               
-              // Remover a mensagem após 5 segundos
+              // Remove the message after 5 seconds
               setTimeout(() => {
                 if (alertDiv.parentNode) {
                   alertDiv.parentNode.removeChild(alertDiv);
@@ -1324,24 +1323,24 @@
             document.getElementById('step1-unused-count').textContent = '0';
             document.getElementById('step1-unused-count').style.color = '#1BC47D';
             
-            // Habilitar o botão de início se houver collections selecionadas
+            // Enable the start button if there are selected collections
             startButton.disabled = !checkboxes.some(cb => cb.checked);
           }
           break;
 
         case 'delete-result':
-          console.log('🗑️ Resultado da exclusão:', msg);
+          console.log('🗑️ Deletion result:', msg);
           const deleteBtn = document.getElementById('deleteSelectedBtn');
           
           if (msg.success) {
-            console.log('✅ Deleção bem-sucedida, preparando tela de sucesso');
-            // Não precisamos mais recriar o HTML do step 3, pois ele já está definido corretamente
-            // Apenas mostrar o step 3
-            console.log('🚀 Chamando showStep para exibir o passo 3');
+            console.log('✅ Deletion successful, preparing success screen');
+            // We no longer need to recreate the HTML of step 3, as it is already correctly defined
+            // Just show step 3
+            console.log('🚀 Calling showStep to display step 3');
             showStep('step3');
           } else {
             console.error('❌ Error in deletion:', msg.error);
-            // Restaurar botão e mostrar erro
+            // Restore button and show error
             if (deleteBtn) {
               deleteBtn.textContent = 'Delete unused variables';
               deleteBtn.disabled = false;
@@ -1351,13 +1350,13 @@
           break;
 
         case 'error':
-          console.error('❌ Erro:', msg.message);
+          console.error('❌ Error:', msg.message);
           alert(msg.message);
           step1Progress.style.display = 'none';
           break;
 
         case 'auto-analysis-result':
-          console.log('📊 Resultado da análise automática:', msg);
+          console.log('📊 Result of automatic analysis:', msg);
           document.getElementById('auto-analyze-spinner').style.display = 'none';
           
           if (msg.variables && Array.isArray(msg.variables)) {
@@ -1371,13 +1370,13 @@
               document.getElementById('step1-unused-count').style.color = '#1BC47D';
               
               // Show informative message when there are no unused variables
-              // Remover mensagem anterior se existir
+              // Remove previous message if it exists
               const existingAlert = document.querySelector('.no-unused-vars-alert');
               if (existingAlert) {
                 existingAlert.parentNode.removeChild(existingAlert);
               }
               
-              // Criar e mostrar a mensagem de alerta
+              // Create and show the alert message
               const alertDiv = document.createElement('div');
               alertDiv.className = 'no-unused-vars-alert';
               alertDiv.style.backgroundColor = '#F8F9FA';
@@ -1397,12 +1396,12 @@
                 </div>
               `;
               
-              // Adicionar a mensagem após o container de collections
+              // Add the message after the collections container
               const collectionsContainer = document.getElementById('collections');
               if (collectionsContainer && collectionsContainer.parentNode) {
                 collectionsContainer.parentNode.insertBefore(alertDiv, collectionsContainer.nextSibling);
                 
-                // Remover a mensagem após 5 segundos
+                // Remove the message after 5 seconds
                 setTimeout(() => {
                   if (alertDiv.parentNode) {
                     alertDiv.parentNode.removeChild(alertDiv);

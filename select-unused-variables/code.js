@@ -129,7 +129,7 @@ async function checkVariableUsage(node, usedVars) {
                 if (node.textStyleId) {
                     const textStyle = figma.getStyleById(node.textStyleId);
                     if (textStyle && textStyle.boundVariables) {
-                        console.log(`�� Checking textStyle:`, textStyle.boundVariables);
+                        console.log(`🔍 Checking textStyle:`, textStyle.boundVariables);
                         
                         for (const [styleKey, binding] of Object.entries(textStyle.boundVariables)) {
                             const bindings = Array.isArray(binding) ? binding : [binding];
@@ -436,7 +436,7 @@ async function processBatch(nodes, stats) {
             // Check for bound variables
             if ('boundVariables' in node && node.boundVariables) {
                 const boundVars = node.boundVariables;
-                console.log(`🔍 Verificando nó: ${node.name}, tipo: ${node.type}, boundVars:`, boundVars);
+                console.log(`🔍 Checking node: ${node.name}, type: ${node.type}, boundVars:`, boundVars);
                 for (const [property, binding] of Object.entries(boundVars)) {
                     try {
                         if (!binding)
@@ -602,7 +602,7 @@ figma.ui.onmessage = async (msg) => {
                 }
             }
             catch (error) {
-                console.error('❌ Erro na inicialização:', error);
+                console.error('❌ Error in initialization:', error);
                 figma.notify('Failed to initialize plugin');
             }
             break;
@@ -654,7 +654,7 @@ figma.ui.onmessage = async (msg) => {
                         console.log(`📄 Checking variables in page: ${page.name} (automatic analysis)`);
                         await scanNodes(page.children, usedVarIds);
                     } catch (error) {
-                        console.error(`❌ Erro ao verificar página ${page.name}:`, error);
+                        console.error(`❌ Error checking page ${page.name}:`, error);
                     }
                 }
                 
@@ -675,7 +675,7 @@ figma.ui.onmessage = async (msg) => {
                             }
                         }
                     } catch (error) {
-                        console.warn(`⚠️ Erro ao verificar estilo de texto:`, error);
+                        console.warn(`⚠️ Error checking text style:`, error);
                     }
                 }
                 
@@ -733,19 +733,19 @@ figma.ui.onmessage = async (msg) => {
                     }
                 });
                 
-                console.log(`�� Automatic analysis complete: ${unusedVarsForUI.length} unused variables in ${executionTime}ms`);
+                console.log(`📊 Automatic analysis complete: ${unusedVarsForUI.length} unused variables in ${executionTime}ms`);
             }
             catch (error) {
-                console.error('❌ Erro na análise automática:', error);
+                console.error('❌ Error in automatic analysis:', error);
                 figma.ui.postMessage({
                     type: 'auto-analysis-result',
                     variables: [],
                     stats: {
                         totalVariables: 0,
                         unusedVariables: 0,
-                        error: error instanceof Error ? error.message : 'Erro desconhecido'
+                        error: error instanceof Error ? error.message : 'Unknown error'
                     },
-                    error: error instanceof Error ? error.message : 'Erro desconhecido'
+                    error: error instanceof Error ? error.message : 'Unknown error'
                 });
             }
             break;
@@ -757,8 +757,8 @@ figma.ui.onmessage = async (msg) => {
                 
                 // Verificar se as collections estão no formato correto
                 if (!collections || !Array.isArray(collections) || collections.length === 0) {
-                    console.error('❌ Collections inválidas:', collections);
-                    throw new Error('Collections inválidas ou vazias');
+                    console.error('❌ Invalid collections:', collections);
+                    throw new Error('Invalid or empty collections');
                 }
                 
                 // Registrar informações detalhadas sobre as collections
@@ -778,9 +778,9 @@ figma.ui.onmessage = async (msg) => {
                             collection.variableIds.forEach(varId => {
                                 const variable = figma.variables.getVariableById(varId);
                                 if (variable) {
-                                    console.log(`📚 - ${variable.name} (${variable.id}), tipo: ${variable.resolvedType}`);
+                                    console.log(`📚 - ${variable.name} (${variable.id}), type: ${variable.resolvedType}`);
                                 } else {
-                                    console.warn(`⚠️ Variável ${varId} não encontrada`);
+                                    console.warn(`⚠️ Variable ${varId} not found`);
                                 }
                             });
                         } else {
@@ -807,7 +807,7 @@ figma.ui.onmessage = async (msg) => {
                 
                 // Obter todas as variáveis das collections selecionadas
                 const allVars = await getAllVariables(collections);
-                console.log(`�� Total variables in selected collections: ${allVars.length}`);
+                console.log(`📚 Total variables in selected collections: ${allVars.length}`);
                 
                 if (allVars.length === 0) {
                     console.warn('⚠️ No variables in the selected collections');
@@ -832,12 +832,13 @@ figma.ui.onmessage = async (msg) => {
                         console.log(`📄 Checking variables in page: ${page.name}`);
                         await scanNodes(page.children, usedVarIds);
                     } catch (error) {
-                        console.error(`❌ Erro ao verificar página ${page.name}:`, error);
+                        console.error(`❌ Error checking page ${page.name}:`, error);
                     }
                 }
                 
                 // Verificar estilos de texto
                 console.log('🔍 Checking text styles...');
+                const textStyles = figma.getLocalTextStyles();
                 console.log(`📊 Found ${textStyles.length} text styles`);
                 
                 for (const style of textStyles) {
@@ -854,7 +855,7 @@ figma.ui.onmessage = async (msg) => {
                             }
                         }
                     } catch (error) {
-                        console.warn(`⚠️ Erro ao verificar estilo de texto:`, error);
+                        console.warn(`⚠️ Error checking text style:`, error);
                     }
                 }
                 
@@ -928,9 +929,9 @@ figma.ui.onmessage = async (msg) => {
                     stats: {
                         totalVariables: 0,
                         unusedVariables: 0,
-                        error: error instanceof Error ? error.message : 'Erro desconhecido'
+                        error: error instanceof Error ? error.message : 'Unknown error'
                     },
-                    error: error instanceof Error ? error.message : 'Erro desconhecido'
+                    error: error instanceof Error ? error.message : 'Unknown error'
                 });
             }
             break;
